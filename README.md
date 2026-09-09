@@ -189,3 +189,106 @@ cd multimodal-visual-search
 ```
 
 There is no runnable application yet. Dependency setup, configuration, and Windows development instructions will be documented when the implementation is available.
+
+## Stage 1 orchestrator backend
+
+The `adaptive-router` branch contains the first runnable backend vertical slice. It receives a desktop capture, calls the perception boundary, classifies intent, selects an expert pipeline and compatible provider, and returns an answer with factual execution telemetry.
+
+### Setup and run
+
+Python 3.11 or newer is required.
+
+```bash
+python -m venv .venv
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+Copy-Item .env.example .env
+uvicorn services.orchestrator.main:app --host 127.0.0.1 --port 8765 --reload
+```
+
+The service defaults to the real perception adapter. Until the perception branch is merged, local development can explicitly set `APP_ENV=development` and `PERCEPTION_MODE=mock`. Mock perception is rejected when `APP_ENV` is neither `development` nor `test`.
+
+### API
+
+`POST /api/analyze` accepts `multipart/form-data` with an image file in `image` and a JSON string in `payload_json`:
+
+```json
+{
+  "request_id": "abc-123",
+  "query": "Why is this code failing?",
+  "context": {
+    "active_app": "Visual Studio Code",
+    "window_title": "main.py",
+    "selection_mode": "rectangle",
+    "bounds": {"x": 100, "y": 100, "width": 800, "height": 500}
+  }
+}
+```
+
+The structured response contains `answer`, `suggested_actions`, a MIR summary, the selected intent/expert/provider and reason code, execution trace events, and latency/API/image-upload metrics. An empty query returns local modality-specific suggestions and makes no provider call.
+
+`GET /api/health` reports orchestrator, perception adapter, and provider readiness. `GET /api/providers` returns only safe status and locally tracked counters; neither endpoint exposes credentials or claims knowledge of provider-side remaining quota.
+
+### Perception integration
+
+The real adapter imports the module named by `PERCEPTION_MODULE` (default `context_perception`) and calls:
+
+```python
+analyze_capture(image_bytes: bytes, context: dict) -> dict
+```
+
+The function may be synchronous or asynchronous and must return valid MIR v0.1. Canonical Pydantic contracts live in `contracts/models.py`. The adapter rejects mismatched request IDs and malformed MIR instead of substituting mock output.
+
+### Experts and routing
+
+The Stage 1 expert registry declares supported modalities, intents, image requirements, preferred representations, and provider compatibility for:
+
+- `text-expert`
+- `code-expert`
+- `table-expert`
+- `chart-expert`
+- `vision-expert`
+- `general-expert`
+
+Transparent rules route code, text, tables, charts, and images to their respective pipelines. Low perception confidence routes to the general expert. Mixed visual input routes to the vision expert. The selected route uploads image bytes only when MIR and routing require pixels; OCR text and structured objects are used otherwise.
+
+### Provider configuration and fallback
+
+Stage 1 includes separate adapters for NVIDIA's OpenAI-compatible chat completions interface, Gemini's REST `generateContent` interface, and an optional local OpenAI-compatible service. Current model identifiers must be supplied through configuration rather than being embedded in code:
+
+| Variable | Purpose |
+| --- | --- |
+| `NVIDIA_API_KEY`, `NVIDIA_MODEL` | NVIDIA hosted endpoint credentials and selected model |
+| `NVIDIA_BASE_URL` | NVIDIA OpenAI-compatible API base URL |
+| `NVIDIA_SUPPORTS_VISION` | Declare whether the configured NVIDIA model accepts images |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | Gemini credentials and selected model |
+| `GEMINI_BASE_URL` | Gemini API base URL |
+| `LOCAL_BASE_URL`, `LOCAL_MODEL` | Optional local OpenAI-compatible provider |
+| `LOCAL_API_KEY` | Optional key for a protected local endpoint |
+| `LOCAL_SUPPORTS_VISION` | Declare whether the local model accepts images |
+| `*_DAILY_BUDGET` | Locally enforced request ceiling; `0` means no local ceiling |
+
+Providers are filtered by expert compatibility, image capability, configuration, and local daily budget. They are attempted in registry order, with failures recorded in the response trace before trying the next compatible provider. If every compatible provider fails or none is configured, the endpoint returns a clean `503` and never fabricates an answer.
+
+Provider calls use async HTTP. Session requests, locally tracked daily requests, failures, and average successful latency are held in memory for Stage 1 and reset when the process restarts.
+
+### Quality checks
+
+Tests use deterministic mock perception and provider adapters and do not consume external quota:
+
+```bash
+pytest
+ruff check .
+mypy
+```
+
+The suite covers modality-to-expert routing, provider fallback, local empty-query suggestions, minimum-sufficient representation behavior, vision routing, low-confidence fallback, and the public API contract.
+
+### Stage 1 limitations
+
+- Provider counters are process-local rather than persisted across restarts.
+- Cloud quota remaining is not fetched or estimated.
+- Intent and expert routing use explicit rules, keywords, and heuristics.
+- Validation is deterministic and lightweight; calibrated confidence and multi-model validation are future work.
+- The real perception implementation must be supplied by the perception component before production use.

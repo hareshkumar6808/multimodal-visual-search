@@ -17,14 +17,16 @@ class OpenAICompatibleProvider(Provider):
         supports_vision: bool,
         daily_budget: int,
         timeout: float,
+        transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
-        super().__init__(daily_budget=daily_budget)
+        super().__init__(daily_budget=daily_budget, is_cloud=name != "local")
         self.name = name
         self.base_url = base_url.rstrip("/") if base_url else None
         self.model = model
         self.api_key = api_key
         self.supports_vision = supports_vision
         self.timeout = timeout
+        self.client = httpx.AsyncClient(timeout=timeout, transport=transport)
 
     @property
     def configured(self) -> bool:
@@ -54,13 +56,15 @@ class OpenAICompatibleProvider(Provider):
             "temperature": 0.2,
             "max_tokens": 1024,
         }
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.post(
-                f"{self.base_url}/chat/completions", headers=headers, json=body
-            )
+        response = await self.client.post(
+            f"{self.base_url}/chat/completions", headers=headers, json=body
+        )
         if response.is_error:
             raise ProviderError(f"Provider {self.name} returned HTTP {response.status_code}")
         try:
             return str(response.json()["choices"][0]["message"]["content"])
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise ProviderError(f"Provider {self.name} returned an invalid response") from exc
+
+    async def aclose(self) -> None:
+        await self.client.aclose()

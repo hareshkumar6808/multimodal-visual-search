@@ -6,6 +6,9 @@ import inspect
 from abc import ABC, abstractmethod
 from typing import Any
 
+from anyio import to_thread
+from pydantic import ValidationError
+
 from contracts.models import MIR, CaptureContext, ImageInfo, Modalities, OCRResult
 
 
@@ -42,13 +45,23 @@ class RealPerceptionAdapter(PerceptionAdapter):
         self, image_bytes: bytes, context: CaptureContext, request_id: str
     ) -> MIR:
         function = self._function()
-        result = function(image_bytes, context.model_dump(mode="json"))
+        context_data = context.model_dump(mode="json")
+        try:
+            if inspect.iscoroutinefunction(function):
+                result = await function(image_bytes, context_data)
+            else:
+                result = await to_thread.run_sync(function, image_bytes, context_data)
+        except Exception as exc:
+            raise PerceptionUnavailableError("Perception analysis failed") from exc
         if inspect.isawaitable(result):
             result = await result
         if not isinstance(result, dict):
             raise PerceptionUnavailableError("Perception returned a non-object result")
         result.setdefault("request_id", request_id)
-        mir = MIR.model_validate(result)
+        try:
+            mir = MIR.model_validate(result)
+        except ValidationError as exc:
+            raise PerceptionUnavailableError("Perception returned invalid MIR v0.1") from exc
         if mir.request_id != request_id:
             raise PerceptionUnavailableError("Perception request_id does not match request")
         return mir

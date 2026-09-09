@@ -57,8 +57,8 @@ EXPERTS: dict[str, Expert] = {
         "chart-expert",
         frozenset({"chart", "image"}),
         ALL_INTENTS,
-        True,
-        "image_and_extracted_labels",
+        False,
+        "extracted_labels_or_image",
         frozenset({"nvidia", "gemini", "local"}),
     ),
     "vision-expert": Expert(
@@ -81,10 +81,10 @@ EXPERTS: dict[str, Expert] = {
 
 
 SUGGESTIONS: dict[Modality, list[str]] = {
-    "code": ["Explain this", "Debug this", "What does this output?", "Optimize this"],
-    "table": ["Summarize", "Extract", "Compare values", "Find maximum"],
+    "code": ["Explain this", "Debug this", "Optimize this", "What does this output?"],
+    "table": ["Summarize", "Extract data", "Compare values", "Find maximum"],
     "chart": ["Explain trend", "Extract data", "Find anomaly", "Compare values"],
-    "image": ["Identify", "Explain", "Visual search", "Describe"],
+    "image": ["Identify", "Explain", "Describe", "Visual search"],
     "text": ["Explain", "Summarize", "Translate", "Verify"],
     "mixed": ["Explain", "Summarize", "Compare components", "Extract information"],
 }

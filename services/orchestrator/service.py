@@ -1,3 +1,4 @@
+import logging
 from time import perf_counter
 
 from contracts.models import (
@@ -14,7 +15,9 @@ from services.orchestrator.perception import PerceptionAdapter
 from services.orchestrator.prompting import build_prompt
 from services.orchestrator.providers.registry import ProviderRegistry
 from services.orchestrator.routing import RuleRouter
-from services.orchestrator.validation import validate_answer
+from services.orchestrator.validation import ResponseValidationError, validate_answer
+
+logger = logging.getLogger(__name__)
 
 
 class Orchestrator:
@@ -93,8 +96,18 @@ class Orchestrator:
             )
 
         prompt = build_prompt(expert_route.expert, mir, payload)
-        provider_name, result, failed_providers = await self.providers.generate_with_fallback(
-            expert_route.expert, prompt, expert_route.image_required, image_bytes, mime_type
+        (
+            provider_name,
+            result,
+            failed_providers,
+            cloud_image_uploaded,
+        ) = await self.providers.generate_with_fallback(
+            expert_route.expert,
+            prompt,
+            expert_route.image_required,
+            image_bytes,
+            mime_type,
+            payload.request_id,
         )
         for failed in failed_providers:
             trace.append(
@@ -119,7 +132,16 @@ class Orchestrator:
             )
         )
         if not valid:
-            raise RuntimeError(validation_message)
+            raise ResponseValidationError(validation_message)
+
+        total_ms = round((perf_counter() - total_started) * 1000)
+        logger.info(
+            "request_complete request_id=%s expert=%s provider=%s latency_ms=%d",
+            payload.request_id,
+            expert_route.expert.name,
+            provider_name,
+            total_ms,
+        )
 
         return AnalyzeResponse(
             request_id=payload.request_id,
@@ -136,11 +158,11 @@ class Orchestrator:
             ),
             trace=trace,
             metrics=Metrics(
-                latency_ms=round((perf_counter() - total_started) * 1000),
+                latency_ms=total_ms,
                 perception_ms=perception_ms,
                 routing_ms=routing_ms,
                 provider_ms=result.latency_ms,
-                cloud_image_uploaded=result.cloud_image_uploaded,
+                cloud_image_uploaded=cloud_image_uploaded,
                 api_calls=len(failed_providers) + 1,
             ),
         )

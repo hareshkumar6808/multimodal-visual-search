@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 
 from contracts.models import MIR, AnalyzePayload, ImageInfo, Modalities, OCRResult
@@ -83,6 +85,16 @@ async def test_visual_not_required_does_not_send_image() -> None:
     assert response.metrics.cloud_image_uploaded is False
 
 
+@pytest.mark.parametrize("modality", ["code", "chart"])
+async def test_nonvisual_code_and_chart_routes_do_not_send_image(modality: str) -> None:
+    provider = MockProvider(name="local")
+    response = await service_for(make_mir(modality, visual_required=False), [provider]).analyze(
+        b"private pixels", "image/png", AnalyzePayload(request_id=modality, query="Explain")
+    )
+    assert provider.received_images == [False]
+    assert response.metrics.cloud_image_uploaded is False
+
+
 async def test_visual_required_selects_vision_capable_route_and_sends_image() -> None:
     text_only = MockProvider(name="nvidia", vision=False)
     vision = MockProvider(name="gemini", vision=True)
@@ -102,3 +114,37 @@ async def test_low_perception_confidence_routes_to_general_expert() -> None:
     )
     assert response.route.expert == "general-expert"
     assert response.route.reason_code == "LOW_PERCEPTION_CONFIDENCE"
+
+
+async def test_trace_metrics_and_concurrent_request_isolation() -> None:
+    provider = MockProvider(name="local")
+    service = service_for(make_mir("code"), [provider])
+    responses = await asyncio.gather(
+        *[
+            service.analyze(
+                b"pixels",
+                "image/png",
+                AnalyzePayload(request_id=f"concurrent-{index}", query="Why is this failing?"),
+            )
+            for index in range(20)
+        ]
+    )
+
+    assert {response.request_id for response in responses} == {
+        f"concurrent-{index}" for index in range(20)
+    }
+    assert provider.stats.session_requests == 20
+    for response in responses:
+        assert [event.stage for event in response.trace] == [
+            "capture_received",
+            "perception",
+            "intent",
+            "routing",
+            "provider",
+            "validation",
+        ]
+        assert response.metrics.latency_ms + 2 >= (
+            response.metrics.perception_ms
+            + response.metrics.routing_ms
+            + response.metrics.provider_ms
+        )

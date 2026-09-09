@@ -1,3 +1,5 @@
+import logging
+
 from services.orchestrator.config import Settings
 from services.orchestrator.experts import Expert
 from services.orchestrator.providers.base import Provider, ProviderError, ProviderResult
@@ -7,6 +9,9 @@ from services.orchestrator.providers.openai_compatible import OpenAICompatiblePr
 
 class NoCompatibleProviderError(RuntimeError):
     pass
+
+
+logger = logging.getLogger(__name__)
 
 
 class ProviderRegistry:
@@ -77,20 +82,33 @@ class ProviderRegistry:
         image_required: bool,
         image_bytes: bytes,
         mime_type: str,
-    ) -> tuple[str, ProviderResult, list[str]]:
+        request_id: str,
+    ) -> tuple[str, ProviderResult, list[str], bool]:
         candidates = self.ranked(expert, image_required)
         if not candidates:
             raise NoCompatibleProviderError("No configured, available provider supports this route")
         failures: list[str] = []
+        cloud_image_uploaded = False
         for provider in candidates:
+            cloud_image_uploaded = cloud_image_uploaded or (image_required and provider.is_cloud)
             try:
                 result = await provider.generate(
                     prompt, image_bytes if image_required else None, mime_type
                 )
-                return provider.name, result, failures
-            except ProviderError:
+                return provider.name, result, failures, cloud_image_uploaded
+            except ProviderError as exc:
                 failures.append(provider.name)
+                logger.warning(
+                    "provider_failed request_id=%s provider=%s category=%s",
+                    request_id,
+                    provider.name,
+                    type(exc).__name__,
+                )
         raise NoCompatibleProviderError(f"All compatible providers failed: {', '.join(failures)}")
+
+    async def aclose(self) -> None:
+        for provider in self.providers:
+            await provider.aclose()
 
     def safe_status(self) -> list[dict[str, object]]:
         result: list[dict[str, object]] = []

@@ -40,8 +40,9 @@ class ProviderStats:
 class Provider(ABC):
     name: str
 
-    def __init__(self, *, daily_budget: int = 0) -> None:
+    def __init__(self, *, daily_budget: int = 0, is_cloud: bool = True) -> None:
         self.daily_budget = daily_budget
+        self.is_cloud = is_cloud
         self.stats = ProviderStats()
 
     @property
@@ -81,7 +82,11 @@ class Provider(ABC):
             raise ProviderError(f"Provider {self.name} request failed: {exc}") from exc
         latency_ms = round((perf_counter() - started) * 1000)
         self.stats.total_latency_ms += latency_ms
-        return ProviderResult(text, latency_ms, image_bytes is not None and self.name != "local")
+        return ProviderResult(text, latency_ms, image_bytes is not None and self.is_cloud)
+
+    async def aclose(self) -> None:
+        """Release provider resources when the application shuts down."""
+        return None
 
     @abstractmethod
     async def _generate(self, prompt: str, image_bytes: bytes | None, mime_type: str) -> str:

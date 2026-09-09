@@ -188,7 +188,7 @@ git clone https://github.com/hareshkumar6808/multimodal-visual-search.git
 cd multimodal-visual-search
 ```
 
-There is no runnable application yet. Dependency setup, configuration, and Windows development instructions will be documented when the implementation is available.
+The Windows desktop application is not runnable yet. The Stage 1 orchestration backend below is runnable independently for development and integration.
 
 ## Stage 1 orchestrator backend
 
@@ -227,6 +227,8 @@ The service defaults to the real perception adapter. Until the perception branch
 ```
 
 The structured response contains `answer`, `suggested_actions`, a MIR summary, the selected intent/expert/provider and reason code, execution trace events, and latency/API/image-upload metrics. An empty query returns local modality-specific suggestions and makes no provider call.
+
+The image body is limited to 20 MiB. Stage 1 accepts PNG, JPEG, GIF, BMP, and WebP content after basic signature/structure validation; it does not trust the uploaded filename as an image validator.
 
 `GET /api/health` reports orchestrator, perception adapter, and provider readiness. `GET /api/providers` returns only safe status and locally tracked counters; neither endpoint exposes credentials or claims knowledge of provider-side remaining quota.
 
@@ -271,7 +273,7 @@ Stage 1 includes separate adapters for NVIDIA's OpenAI-compatible chat completio
 
 Providers are filtered by expert compatibility, image capability, configuration, and local daily budget. They are attempted in registry order, with failures recorded in the response trace before trying the next compatible provider. If every compatible provider fails or none is configured, the endpoint returns a clean `503` and never fabricates an answer.
 
-Provider calls use async HTTP. Session requests, locally tracked daily requests, failures, and average successful latency are held in memory for Stage 1 and reset when the process restarts.
+Provider calls use reusable async HTTP clients with finite configurable timeouts. Clients close during application shutdown. Session requests, locally tracked daily requests, failures, and average successful latency are held in memory for Stage 1 and reset when the process restarts.
 
 ### Quality checks
 
@@ -280,7 +282,7 @@ Tests use deterministic mock perception and provider adapters and do not consume
 ```bash
 pytest
 ruff check .
-mypy
+mypy contracts services
 ```
 
 The suite covers modality-to-expert routing, provider fallback, local empty-query suggestions, minimum-sufficient representation behavior, vision routing, low-confidence fallback, and the public API contract.
@@ -292,3 +294,5 @@ The suite covers modality-to-expert routing, provider fallback, local empty-quer
 - Intent and expert routing use explicit rules, keywords, and heuristics.
 - Validation is deterministic and lightweight; calibrated confidence and multi-model validation are future work.
 - The real perception implementation must be supplied by the perception component before production use.
+
+The completed technical review is recorded in [`STAGE1_ROUTER_AUDIT.md`](STAGE1_ROUTER_AUDIT.md).

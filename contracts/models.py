@@ -37,7 +37,7 @@ class CaptureContext(BaseModel):
 
 class AnalyzePayload(BaseModel):
     request_id: str = Field(min_length=1, max_length=128)
-    query: str = ""
+    query: str | None = None
     context: CaptureContext = Field(default_factory=CaptureContext)
 
 

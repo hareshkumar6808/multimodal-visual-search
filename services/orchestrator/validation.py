@@ -1,6 +1,10 @@
 from contracts.models import MIR
 
 
+class ResponseValidationError(RuntimeError):
+    pass
+
+
 def validate_answer(answer: str, expert_name: str, mir: MIR) -> tuple[bool, str]:
     if not answer.strip():
         return False, "Provider response was empty"

@@ -1,4 +1,6 @@
 import json
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Annotated, cast
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
@@ -6,6 +8,7 @@ from pydantic import ValidationError
 
 from contracts.models import AnalyzePayload, AnalyzeResponse, ProviderStatus
 from services.orchestrator.config import Settings, get_settings
+from services.orchestrator.images import InvalidImageError, validate_image
 from services.orchestrator.perception import PerceptionUnavailableError, build_perception_adapter
 from services.orchestrator.providers.registry import (
     NoCompatibleProviderError,
@@ -13,6 +16,7 @@ from services.orchestrator.providers.registry import (
 )
 from services.orchestrator.routing import RuleRouter
 from services.orchestrator.service import Orchestrator
+from services.orchestrator.validation import ResponseValidationError
 
 MAX_IMAGE_BYTES = 20 * 1024 * 1024
 
@@ -29,7 +33,14 @@ def build_orchestrator(settings: Settings) -> Orchestrator:
 
 
 def create_app(orchestrator: Orchestrator | None = None) -> FastAPI:
-    app = FastAPI(title="Multimodal Visual Search Orchestrator", version="0.1.0")
+    @asynccontextmanager
+    async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+        yield
+        active = cast(Orchestrator | None, application.state.orchestrator)
+        if active is not None:
+            await active.providers.aclose()
+
+    app = FastAPI(title="Multimodal Visual Search Orchestrator", version="0.1.0", lifespan=lifespan)
     app.state.orchestrator = orchestrator
 
     def get_orchestrator(settings: Annotated[Settings, Depends(get_settings)]) -> Orchestrator:
@@ -67,21 +78,29 @@ def create_app(orchestrator: Orchestrator | None = None) -> FastAPI:
             )
         image_bytes = await image.read(MAX_IMAGE_BYTES + 1)
         if not image_bytes:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "image must not be empty")
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "image must not be empty")
         if len(image_bytes) > MAX_IMAGE_BYTES:
-            raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "image exceeds 20 MiB")
+            raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "image exceeds 20 MiB")
+        try:
+            detected_mime_type = validate_image(image_bytes)
+        except InvalidImageError as exc:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, f"malformed image: {exc}"
+            ) from exc
         try:
             payload = AnalyzePayload.model_validate(json.loads(payload_json))
         except (json.JSONDecodeError, ValidationError) as exc:
             raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY, f"invalid payload_json: {exc}"
+                status.HTTP_422_UNPROCESSABLE_CONTENT, f"invalid payload_json: {exc}"
             ) from exc
         try:
-            return await service.analyze(image_bytes, image.content_type, payload)
+            return await service.analyze(image_bytes, detected_mime_type, payload)
         except PerceptionUnavailableError as exc:
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
         except NoCompatibleProviderError as exc:
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
+        except ResponseValidationError as exc:
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
 
     return app
 

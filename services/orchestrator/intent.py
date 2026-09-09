@@ -6,14 +6,14 @@ KEYWORDS: list[tuple[Intent, tuple[str, ...]]] = [
     ("extract", ("extract", "transcribe", "copy", "convert to", "read the")),
     ("compare", ("compare", "difference", "versus", " vs ", "agree")),
     ("calculate", ("calculate", "compute", "total", "average", "maximum", "minimum", "sum")),
-    ("search", ("search", "find online", "look up", "similar")),
+    ("search", ("search", "find online", "find information", "look up", "similar")),
     ("explain", ("explain", "why", "how does", "what does", "meaning")),
     ("identify", ("what is this", "identify", "who is", "recognize")),
 ]
 
 
-def classify_intent(query: str, modality: Modality) -> Intent:
-    normalized = " ".join(query.lower().split())
+def classify_intent(query: str | None, modality: Modality) -> Intent:
+    normalized = " ".join((query or "").lower().split())
     if not normalized:
         return "suggest"
     for intent, terms in KEYWORDS:

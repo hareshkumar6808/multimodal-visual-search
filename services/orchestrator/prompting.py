@@ -40,5 +40,5 @@ def build_prompt(expert: Expert, mir: MIR, payload: AnalyzePayload) -> str:
             lines.append(f"Structured objects:\n{objects}")
     elif expert.name == "chart-expert" and mir.ocr.text:
         lines.append(f"Extracted chart labels:\n{mir.ocr.text}")
-    lines.append(f"Question: {payload.query.strip() or 'Describe the relevant content.'}")
+    lines.append(f"Question: {(payload.query or '').strip() or 'Describe the relevant content.'}")
     return "\n\n".join(lines)

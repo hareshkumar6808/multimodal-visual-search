@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop-windows",
+  "description": "Permissions for the Stage 1 desktop windows",
+  "windows": ["widget", "capture", "chat", "utility-*"],
+  "permissions": ["core:default"]
+}

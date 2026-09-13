@@ -1,0 +1,1 @@
+{"desktop-windows":{"identifier":"desktop-windows","description":"Permissions for the Stage 1 desktop windows","local":true,"windows":["widget","capture","chat","utility-*"],"permissions":["core:default"]}}

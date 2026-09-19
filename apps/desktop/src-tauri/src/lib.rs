@@ -95,7 +95,7 @@ struct MirSummary {
 struct RouteDetails {
     intent: String,
     expert: String,
-    provider: String,
+    provider: Option<String>,
     reason_code: String,
 }
 
@@ -104,18 +104,25 @@ struct TraceEvent {
     stage: String,
     status: String,
     message: Option<String>,
+    confidence: Option<f64>,
+    duration_ms: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 struct AnalyzeMetrics {
     latency_ms: u64,
+    perception_ms: u64,
+    routing_ms: u64,
+    provider_ms: u64,
     cloud_image_uploaded: bool,
+    api_calls: u64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 struct AnalyzeResponse {
     request_id: String,
-    answer: String,
+    answer: Option<String>,
+    suggested_actions: Vec<String>,
     mir_summary: MirSummary,
     route: RouteDetails,
     trace: Vec<TraceEvent>,

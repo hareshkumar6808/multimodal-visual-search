@@ -20,10 +20,11 @@ const payload: AnalyzePayload = {
 const response: AnalyzeResponse = {
   request_id: "request-123",
   answer: "Example answer",
+  suggested_actions: [],
   mir_summary: { primary_modality: "code", confidence: 0.94 },
   route: { intent: "explain", expert: "code-expert", provider: "local", reason_code: "CODE_TEXT_SUFFICIENT" },
   trace: [{ stage: "capture_received", status: "complete" }],
-  metrics: { latency_ms: 900, cloud_image_uploaded: false },
+  metrics: { latency_ms: 900, perception_ms: 200, routing_ms: 2, provider_ms: 690, cloud_image_uploaded: false, api_calls: 1 },
 };
 
 describe("analyzeCapture", () => {

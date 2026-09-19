@@ -4,8 +4,8 @@ import type { AnalyzeResponse, TraceEvent } from "../types/api";
 
 function TraceIcon({ event }: { event: TraceEvent }) {
   if (event.status === "complete") return <Check className="trace-ok" />;
-  if (event.status === "error") return <CircleAlert className="trace-error" />;
-  return <LoaderCircle className={event.status === "running" ? "spin" : ""} />;
+  if (event.status === "failed") return <CircleAlert className="trace-error" />;
+  return <LoaderCircle />;
 }
 
 function label(stage: string) {
@@ -31,9 +31,10 @@ export function TracePanel({ response }: { response: AnalyzeResponse }) {
             <div><dt>Modality</dt><dd>{response.mir_summary.primary_modality} · {Math.round(response.mir_summary.confidence * 100)}%</dd></div>
             <div><dt>Intent</dt><dd>{response.route.intent}</dd></div>
             <div><dt>Expert</dt><dd>{response.route.expert}</dd></div>
-            <div><dt>Provider</dt><dd>{response.route.provider}</dd></div>
+            <div><dt>Provider</dt><dd>{response.route.provider ?? "None"}</dd></div>
             <div><dt>Total</dt><dd>{(response.metrics.latency_ms / 1000).toFixed(2)} sec</dd></div>
             <div><dt>Cloud image</dt><dd>{response.metrics.cloud_image_uploaded ? "Uploaded" : "Not uploaded"}</dd></div>
+            <div><dt>API calls</dt><dd>{response.metrics.api_calls}</dd></div>
           </dl>
         </div>
       )}

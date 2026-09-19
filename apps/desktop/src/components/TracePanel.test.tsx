@@ -6,6 +6,7 @@ import { TracePanel } from "./TracePanel";
 const response: AnalyzeResponse = {
   request_id: "abc-123",
   answer: "Returned response",
+  suggested_actions: [],
   mir_summary: { primary_modality: "code", confidence: 0.94 },
   route: { intent: "debug", expert: "code-expert", provider: "provider-name", reason_code: "CODE_DEBUG_TEXT_SUFFICIENT" },
   trace: [
@@ -13,7 +14,7 @@ const response: AnalyzeResponse = {
     { stage: "perception", status: "complete", message: "Code detected" },
     { stage: "routing", status: "complete", message: "Code Expert selected" },
   ],
-  metrics: { latency_ms: 1200, cloud_image_uploaded: false },
+  metrics: { latency_ms: 1200, perception_ms: 250, routing_ms: 2, provider_ms: 940, cloud_image_uploaded: false, api_calls: 1 },
 };
 
 describe("TracePanel", () => {

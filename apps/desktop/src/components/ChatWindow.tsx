@@ -86,7 +86,13 @@ export function ChatWindow({ captureId }: { captureId: string | null }) {
           <section className="answer-card">
             <div className="route-summary"><span>Automatically routed</span><strong>{response.route.expert}</strong><small>{response.mir_summary.primary_modality} · {Math.round(response.mir_summary.confidence * 100)}% confidence</small></div>
             <span className="answer-label">Answer</span>
-            <p>{response.answer}</p>
+            {response.answer && <p>{response.answer}</p>}
+            {response.suggested_actions.length > 0 && (
+              <div className="suggestions" aria-label="Contextual suggested actions">
+                <span>Suggested actions</span>
+                <div>{response.suggested_actions.map((action) => <button key={action} onClick={() => void submit(undefined, action)}>{action}</button>)}</div>
+              </div>
+            )}
             <TracePanel response={response} />
           </section>
         )}

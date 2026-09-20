@@ -485,8 +485,9 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(DesktopState::default())
         .setup(|app| {
-            register_capture_shortcut(app.handle(), DEFAULT_CAPTURE_SHORTCUT)
-                .map_err(|error| std::io::Error::new(std::io::ErrorKind::Other, error))?;
+            if let Err(error) = register_capture_shortcut(app.handle(), DEFAULT_CAPTURE_SHORTCUT) {
+                eprintln!("Global capture shortcut is unavailable: {error}");
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

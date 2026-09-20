@@ -2,11 +2,9 @@
 
 ## Overall status
 
-**PASS WITH WARNINGS**
+**FAIL**
 
-The desktop, perception, and adaptive-router component histories are integrated on `stage1-integration`. Shared contracts now agree, the real perception module is the default, the frontend accepts every valid backend response shape, and the verified automated vertical slices pass without cloud credentials.
-
-Native Tauri execution and live Tesseract OCR could not be completed on the audit host because Rust/MSVC and Tesseract are not installed. Both dependencies are documented, absence is reported safely, and corresponding environment-dependent checks are identified below.
+The desktop, perception, and adaptive-router component histories are integrated on `stage1-integration`. Shared contracts agree, the real perception module is the default, and the automated Python and frontend suites pass. Native Windows validation did not pass the release gate: this Codex task's Windows process token was denied permission to create a Tauri window and capture desktop pixels. Live Tesseract OCR did pass. MSVC Build Tools and provider credentials remain unavailable.
 
 ## Branches merged
 
@@ -140,8 +138,100 @@ Uvicorn started successfully at `127.0.0.1:8765` without provider keys. Live req
 
 ## Known bugs
 
-No known code-level Stage 1 blocker remains after the integration fixes. Native execution still needs verification on a Windows development machine with the documented OCR and Rust toolchains.
+The default global shortcut could previously abort application startup when registration was unavailable. Startup now reports that condition to stderr and continues so the widget remains usable through pointer input. Native window and capture behavior still require validation in an unrestricted interactive Windows session.
 
 ## Stage 1 readiness
 
-**READY FOR REVIEW BEFORE MERGING INTO `main`**, with native Tauri and live Tesseract smoke tests required on a fully provisioned Windows development machine before release approval.
+**NOT READY FOR PR TO `main`**. Native Tauri launch and real desktop capture remain unverified because Windows returned access denied for both operations in this task environment.
+
+## NATIVE WINDOWS VALIDATION
+
+Validation was run on Windows NT 10.0.26200.0 x64 (Windows 11 build family). The branch was confirmed as `stage1-integration`, `origin/stage1-integration` was already up to date, and validation started from `e9dbe216dcd3678b9e6a7135252bb69e6f994149`.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Tesseract | PASS | Repository-local Tesseract `5.5.3.20260724` executed with official English trained data; Python discovery used `TESSERACT_CMD` |
+| Rust | PASS WITH LIMITATION | Rust and Cargo `1.98.1` for `x86_64-pc-windows-gnu`; `cargo check --offline` passed |
+| MSVC | UNAVAILABLE | Visual Studio/MSVC Build Tools were not installed; the supported Windows MSVC build path could not be exercised |
+| WebView2 | PASS | Runtime `153.0.4234.32` detected and executable present |
+| Tauri native launch | FAIL | A diagnostic executable reached Tauri setup, but creating even one plain window failed with `Access is denied. (os error 5)`; zero-window mode remained alive, isolating the failure to native window creation |
+| Real desktop capture | FAIL | A direct test of the repository's `capture_primary_screen` function reached the Windows capture API and failed with `Access is denied. (0x80070005)` |
+| Real OCR text | PASS | OCR returned exactly `The capital of France is Paris.` with confidence `0.9583`; modality `text`; `visual_required=false`; MIR `0.1` |
+| Real OCR code | PASS | OCR returned `arr = [1, 2, 3] print(arr[4])` with confidence `0.935`; modality `code`; `visual_required=false`; MIR `0.1`; the meaning-critical tokens were preserved |
+| Backend health/providers | PASS | Live `GET /api/health` and `GET /api/providers` returned HTTP 200; health reported the real perception module and `TesseractOCREngine` available |
+| Desktop-to-backend transport | PARTIAL | The same multipart contract used by the desktop was exercised over live HTTP. Empty-query analysis succeeded; a Tauri UI-originated request could not be produced because native window creation failed |
+| Text route | PARTIAL | Real OCR and routing were reached over live HTTP; the request ended in controlled HTTP 503 because no provider was configured. Automated route/provider tests pass and assert no cloud image upload |
+| Code route | PARTIAL | Real OCR classified the input as code; live HTTP ended in controlled HTTP 503 because no provider was configured. Automated routing selected `code-expert` and preserved text-only provider input |
+| Empty query | PASS | Live HTTP returned `suggest`, `code-expert`, provider `null`, four code actions, `api_calls=0`, and `cloud_image_uploaded=false` |
+| Provider | BLOCKED | NVIDIA, Gemini, and local providers all reported `configured=false`; no provider environment key was present. **live provider authentication not verified.** |
+| Visual provider | BLOCKED | No configured vision provider and no permitted native screen capture; no visual cloud call was attempted |
+| Provider fallback | PASS | Automated failure-injection coverage passed without consuming cloud quota |
+| Process trace | PARTIAL | The live empty-query response contained capture, perception, intent, routing, and skipped-provider trace events with matching timing and metrics; native `Show Process` rendering could not be exercised |
+| Native error states | PARTIAL | Missing provider produced controlled HTTP 503, blank OCR passed the real-engine test, provider timeout/fallback tests passed, empty query remained available; backend-stopped UI rendering could not be exercised without a native window |
+| Machine-specific paths | PASS | No personal username or repository path was introduced. Standard Windows Tesseract discovery remains documented; `TESSERACT_CMD` now supports configurable installations |
+
+### Native diagnostics
+
+The repository's original crate layout was retained. A temporary GNU-only diagnostic build excluded the unused Windows `cdylib` output because GNU `ld` rejected an export ordinal above 65535; that temporary change was reverted. The resulting executable proved that process startup and the Tauri event loop work, but Tauri failed while creating the first configured window. A second build with a plain decorated, opaque window failed identically. Setting a writable WebView2 data directory did not change the result. Configuring zero startup windows kept the process alive. These diagnostics do not constitute a successful native application launch.
+
+The exact `npm.cmd run tauri:dev` command was also attempted. Its `beforeDevCommand` stopped because the task sandbox denied esbuild permission to traverse the parent directory while loading `vite.config.ts`. The production frontend build passed with Vite's runner config loader; the separate diagnostic executable was used to reach the native Windows APIs described above.
+
+The native screen-capture probe used the repository's real `screenshots`-based function against the actual primary display. Windows rejected the capture with `0x80070005`. The probe was removed after validation and no synthetic image is presented as a desktop capture.
+
+### Real OCR and MIR output
+
+The text smoke image contained `The capital of France is Paris.`. Real Tesseract recovered the exact sentence, and the real perception pipeline emitted MIR v0.1 with `primary_modality=text`, OCR confidence `0.9583`, overall confidence `0.72`, and `visual_required=false`.
+
+The code smoke image contained:
+
+```python
+arr = [1, 2, 3]
+print(arr[4])
+```
+
+Real Tesseract recovered `arr = [1, 2, 3] print(arr[4])`. The line break was flattened, but all meaning-critical characters were preserved. The real perception pipeline emitted MIR v0.1 with `primary_modality=code`, OCR confidence `0.935`, overall confidence `0.65`, and `visual_required=false`.
+
+### Live backend result
+
+The live empty-query code request returned HTTP 200 with `intent=suggest`, `expert=code-expert`, `provider=null`, reason `EMPTY_QUERY_LOCAL_SUGGESTIONS`, suggestions `Explain this`, `Debug this`, `Optimize this`, and `What does this output?`, `api_calls=0`, provider time `0 ms`, and `cloud_image_uploaded=false`. Live text and code queries both reached real OCR and routing, then returned controlled HTTP 503 because no compatible provider was configured.
+
+### Final automated results
+
+- Pytest: **86 passed, 0 failed, 0 skipped**, including all four real Tesseract-dependent cases; 237 dependency deprecation warnings.
+- Ruff: **passed**.
+- Strict mypy: **passed across 37 source files**.
+- Vitest: **2 files, 3 tests passed** using Vite's runner config loader because the default esbuild config loader was denied sandbox directory traversal.
+- ESLint: **passed with zero warnings**.
+- TypeScript: **passed**.
+- Vite production build: **passed**, 1,587 modules transformed.
+- npm audit: **0 vulnerabilities**.
+- Cargo check: **passed** with the Windows GNU fallback toolchain.
+- Cargo test with the repository's multi-crate-type configuration: **failed at GNU linking** because `ld` rejected an export ordinal above 65535. The supported MSVC test path remains unavailable.
+
+### Fixes made during validation
+
+- Added `TESSERACT_CMD` discovery and documented it in `.env.example`, avoiding machine-specific executable paths.
+- Updated real OCR tests to use the same configurable discovery path as production.
+- Made an unavailable global capture shortcut nonfatal during startup; pointer-based capture remains available when shortcut registration fails.
+
+### Remaining warnings and release gate
+
+- The task environment denies native GUI window creation and primary-display capture. Both must be rerun from an unrestricted interactive Windows session.
+- MSVC Build Tools and a Windows SDK are required to exercise the repository's supported Windows Tauri build path.
+- No NVIDIA or Gemini key was configured; **live provider authentication not verified.**
+- Python 3.14 produced upstream deprecation warnings.
+
+The exact backend command is:
+
+```powershell
+$env:TESSERACT_CMD='<path-to-tesseract.exe>'; .\.venv\Scripts\python.exe -m uvicorn services.orchestrator.main:app --host 127.0.0.1 --port 8765 --reload
+```
+
+The exact desktop command is:
+
+```powershell
+cd apps\desktop
+npm.cmd run tauri:dev
+```
+
+Final native validation status: **FAIL**. The automated application logic and real OCR pass, but the Stage 1 release gate requires a successful native window launch and real desktop capture. `stage1-integration` is therefore not ready for a PR to `main`.

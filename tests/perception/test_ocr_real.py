@@ -7,9 +7,6 @@ from PIL import Image, ImageDraw
 
 from services.perception.ocr.tesseract_engine import TesseractOCREngine
 
-# Verified default path on this system
-TESSERACT_EXE = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-
 
 def make_synthetic_text_image(text: str = "Multimodal Visual Search 2026") -> bytes:
     """Render high-contrast synthetic image containing known clear text."""
@@ -24,9 +21,9 @@ def make_synthetic_text_image(text: str = "Multimodal Visual Search 2026") -> by
 
 @pytest.fixture
 def tesseract_engine() -> TesseractOCREngine:
-    engine = TesseractOCREngine(executable_path=TESSERACT_EXE)
+    engine = TesseractOCREngine()
     if not engine.is_available():
-        pytest.skip("Tesseract is not installed at the documented Windows path")
+        pytest.skip("Tesseract is not available through TESSERACT_CMD, PATH, or a standard path")
     return engine
 
 

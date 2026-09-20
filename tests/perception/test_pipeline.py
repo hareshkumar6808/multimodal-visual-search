@@ -14,8 +14,6 @@ from services.perception.models import OCRResult
 from services.perception.ocr.base import OCREngine
 from services.perception.ocr.tesseract_engine import TesseractOCREngine
 
-TESSERACT_EXE = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-
 
 class DeterministicMockOCR(OCREngine):
     def __init__(self, text: str = "def hello(): pass", conf: float = 0.95) -> None:
@@ -82,8 +80,8 @@ def test_pipeline_end_to_end_with_mock_ocr() -> None:
 
 def test_analyze_capture_convenience_function() -> None:
     # Uses real local Tesseract engine
-    if not TesseractOCREngine(executable_path=TESSERACT_EXE).is_available():
-        pytest.skip("Tesseract is not installed at the documented Windows path")
+    if not TesseractOCREngine().is_available():
+        pytest.skip("Tesseract is not available through TESSERACT_CMD, PATH, or a standard path")
     img = Image.new("RGB", (500, 100), color=(255, 255, 255))
     draw = ImageDraw.Draw(img)
     draw.text((20, 35), "print('Stage 1 Perception')", fill=(0, 0, 0))
@@ -94,7 +92,7 @@ def test_analyze_capture_convenience_function() -> None:
         buf.getvalue(),
         context={"active_app": "Code", "window_title": "test.py"},
         request_id="convenience-test",
-        tesseract_path=TESSERACT_EXE,
+        tesseract_path=None,
     )
 
     assert isinstance(mir_dict, dict)

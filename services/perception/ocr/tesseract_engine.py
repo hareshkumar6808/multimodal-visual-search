@@ -31,6 +31,10 @@ class TesseractOCREngine(OCREngine):
         if custom_path and os.path.exists(custom_path):
             return custom_path
 
+        configured_path = os.getenv("TESSERACT_CMD")
+        if configured_path and os.path.exists(configured_path):
+            return configured_path
+
         # Check PATH first
         path_in_env = shutil.which("tesseract")
         if path_in_env:

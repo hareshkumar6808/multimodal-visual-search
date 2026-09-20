@@ -71,4 +71,12 @@ export interface CaptureResult {
   capture_id: string;
   image_data_url: string;
   payload: AnalyzePayload;
+  captured_at_ms: number;
+}
+
+export interface BackendHealth {
+  connected: boolean;
+  status: number | null;
+  message: string;
+  provider: string | null;
 }

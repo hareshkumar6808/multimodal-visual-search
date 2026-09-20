@@ -38,6 +38,13 @@ class Orchestrator:
         mir = await self.perception.analyze_capture(
             image_bytes, payload.context, payload.request_id
         )
+        logger.info(
+            "PERCEPTION_COMPLETE request_id=%s modality=%s confidence=%.2f",
+            payload.request_id,
+            mir.primary_modality,
+            mir.overall_confidence,
+        )
+        logger.info("MIR_CREATED request_id=%s version=%s", payload.request_id, mir.mir_version)
         perception_ms = round((perf_counter() - perception_started) * 1000)
         trace.append(
             TraceEvent(
@@ -50,10 +57,16 @@ class Orchestrator:
         )
 
         intent = classify_intent(payload.query, mir.primary_modality)
+        logger.info("INTENT_SELECTED request_id=%s intent=%s", payload.request_id, intent)
         trace.append(TraceEvent(stage="intent", status="complete", message=intent.title()))
 
         routing_started = perf_counter()
         expert_route = self.router.route(mir, intent)
+        logger.info(
+            "EXPERT_SELECTED request_id=%s expert=%s",
+            payload.request_id,
+            expert_route.expert.name,
+        )
         routing_ms = round((perf_counter() - routing_started) * 1000)
         trace.append(
             TraceEvent(
@@ -109,6 +122,15 @@ class Orchestrator:
             mime_type,
             payload.request_id,
         )
+        logger.info(
+            "PROVIDER_SELECTED request_id=%s provider=%s", payload.request_id, provider_name
+        )
+        logger.info(
+            "PROVIDER_RESPONSE request_id=%s provider=%s latency_ms=%d",
+            payload.request_id,
+            provider_name,
+            result.latency_ms,
+        )
         for failed in failed_providers:
             trace.append(
                 TraceEvent(
@@ -136,7 +158,7 @@ class Orchestrator:
 
         total_ms = round((perf_counter() - total_started) * 1000)
         logger.info(
-            "request_complete request_id=%s expert=%s provider=%s latency_ms=%d",
+            "REQUEST_COMPLETE request_id=%s expert=%s provider=%s latency_ms=%d",
             payload.request_id,
             expert_route.expert.name,
             provider_name,

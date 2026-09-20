@@ -1,3 +1,5 @@
+import socket
+
 import httpx
 import pytest
 
@@ -91,3 +93,26 @@ async def test_cloud_upload_metric_includes_failed_cloud_attempt() -> None:
     )
     assert failures == ["nvidia"]
     assert uploaded is True
+
+
+def test_local_provider_availability_requires_a_listening_service() -> None:
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    port = listener.getsockname()[1]
+    provider = OpenAICompatibleProvider(
+        name="local",
+        base_url=f"http://127.0.0.1:{port}/v1",
+        model="local-model",
+        api_key=None,
+        supports_vision=False,
+        daily_budget=0,
+        timeout=1,
+    )
+    try:
+        assert provider.configured is True
+        assert provider.available() is True
+        listener.close()
+        assert provider.available() is False
+    finally:
+        listener.close()

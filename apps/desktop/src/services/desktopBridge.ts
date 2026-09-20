@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { CaptureBounds, CaptureFrame, CaptureResult, SelectionMode } from "../types/api";
+import type { BackendHealth, CaptureBounds, CaptureFrame, CaptureResult, SelectionMode } from "../types/api";
 
 export const desktopBridge = {
   beginRectangleCapture: () => invoke<CaptureFrame>("begin_rectangle_capture"),
@@ -8,6 +8,9 @@ export const desktopBridge = {
     invoke<CaptureResult>("finalize_rectangle_capture", { captureId, bounds }),
   getCapture: (captureId: string) => invoke<CaptureResult>("get_capture", { captureId }),
   getActiveCaptureId: () => invoke<string | null>("get_active_capture_id"),
+  markChatReady: () => invoke<void>("mark_chat_ready"),
+  markCaptureDelivered: (captureId: string) => invoke<void>("mark_capture_delivered", { captureId }),
+  checkBackendHealth: () => invoke<BackendHealth>("check_backend_health"),
   cancelCapture: () => invoke<void>("cancel_capture"),
   openUtility: (view: "history" | "settings" | "shortcuts") =>
     invoke<void>("open_utility_window", { view }),

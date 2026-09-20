@@ -6,6 +6,7 @@ modalities: text, code, table, chart, image, mixed.
 
 from __future__ import annotations
 
+from statistics import median
 from typing import Any
 
 from services.perception.models import Modalities, Modality, OCRResult
@@ -19,43 +20,68 @@ from services.perception.profiling.rules import (
 
 
 def _check_table_alignment(regions: list[dict[str, Any]], img_w: int, img_h: int) -> float:
-    """Heuristic check for vertical column alignment among OCR bounding boxes."""
-    if len(regions) < 4:
-        return 0.0
-
-    # Cluster x-coordinates within a 15-pixel tolerance
-    tolerance = max(8, int(img_w * 0.015))
-    x_positions: list[int] = []
-    for reg in regions:
-        bbox = reg.get("bbox") or {}
-        x = bbox.get("x")
-        if x is not None:
-            x_positions.append(x)
-
-    if not x_positions:
-        return 0.0
-
-    aligned_columns = 0
-    used = [False] * len(x_positions)
-    for i in range(len(x_positions)):
-        if used[i]:
+    """Score repeated multi-column cell groups, excluding paragraph left margins."""
+    boxes: list[tuple[int, int, int, int]] = []
+    for region in regions:
+        bbox = region.get("bbox") or {}
+        try:
+            x = int(bbox["x"])
+            y = int(bbox["y"])
+            width = int(bbox["width"])
+            height = int(bbox["height"])
+        except (KeyError, TypeError, ValueError):
             continue
-        cluster_size = 1
-        for j in range(i + 1, len(x_positions)):
-            if not used[j] and abs(x_positions[i] - x_positions[j]) <= tolerance:
-                cluster_size += 1
-                used[j] = True
-        used[i] = True
-        if cluster_size >= 3:
-            aligned_columns += 1
+        if width > 0 and height > 0:
+            boxes.append((x, y, width, height))
+    if len(boxes) < 6:
+        return 0.0
 
-    # If at least 2 distinct columns have 3+ aligned items, score table alignment high
-    if aligned_columns >= 3:
+    line_tolerance = max(6, int(img_h * 0.012), int(median(box[3] for box in boxes) * 0.6))
+    lines: list[list[tuple[int, int, int, int]]] = []
+    for box in sorted(boxes, key=lambda item: (item[1] + item[3] // 2, item[0])):
+        center_y = box[1] + box[3] // 2
+        for line in lines:
+            line_center = int(median(item[1] + item[3] // 2 for item in line))
+            if abs(center_y - line_center) <= line_tolerance:
+                line.append(box)
+                break
+        else:
+            lines.append([box])
+    if len(lines) < 3:
+        return 0.0
+
+    cell_gap = max(18, int(img_w * 0.025), int(median(box[3] for box in boxes) * 1.5))
+    structured_lines: list[list[int]] = []
+    for line in lines:
+        ordered = sorted(line, key=lambda item: item[0])
+        cell_starts = [ordered[0][0]]
+        previous_right = ordered[0][0] + ordered[0][2]
+        for box in ordered[1:]:
+            if box[0] - previous_right >= cell_gap:
+                cell_starts.append(box[0])
+            previous_right = max(previous_right, box[0] + box[2])
+        if len(cell_starts) >= 2:
+            structured_lines.append(cell_starts)
+
+    if len(structured_lines) < 3 or len(structured_lines) / len(lines) < 0.6:
+        return 0.0
+
+    column_tolerance = max(10, int(img_w * 0.02))
+    clusters: list[list[int]] = []
+    for starts in structured_lines:
+        for x in starts:
+            for cluster in clusters:
+                if abs(x - int(median(cluster))) <= column_tolerance:
+                    cluster.append(x)
+                    break
+            else:
+                clusters.append([x])
+    minimum_rows = max(3, round(len(structured_lines) * 0.6))
+    repeated_columns = sum(1 for cluster in clusters if len(cluster) >= minimum_rows)
+    if repeated_columns >= 3:
         return 0.7
-    if aligned_columns >= 2:
-        return 0.45
-    if aligned_columns == 1:
-        return 0.2
+    if repeated_columns >= 2:
+        return 0.55
     return 0.0
 
 
@@ -106,22 +132,38 @@ def profile_multimodal(
     # 2. Table Modality Score
     # -------------------------------------------------------------
     table_delims = count_table_matches(text)
+    chart_kw_count = count_chart_keywords(text)
     alignment_score = _check_table_alignment(regions, preflight.width, preflight.height)
     table_raw = 0.0
     if table_delims > 0:
         table_raw += min(0.60, table_delims * 0.25)
     table_raw += alignment_score
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    sentence_lines = sum(1 for line in lines if line.endswith((".", "!", "?")))
+    paragraph_evidence = (
+        word_count >= 8
+        and code_score < 0.4
+        and chart_kw_count < 2
+        and table_delims == 0
+        and alignment_score == 0
+        and (sentence_lines >= 1 or (lines and word_count / len(lines) >= 6))
+    )
+    if paragraph_evidence:
+        table_raw = max(0.0, table_raw - 0.25)
     table_score = min(1.0, table_raw + boosts["table"])
 
     # -------------------------------------------------------------
     # 3. Chart Modality Score
     # -------------------------------------------------------------
-    chart_kw_count = count_chart_keywords(text)
     chart_raw = min(0.60, chart_kw_count * 0.20)
     # Charts typically have moderate-to-low text coverage with numbers/%
     if 0.02 <= text_coverage <= 0.35 and chart_kw_count >= 1:
         chart_raw += 0.25
     chart_score = min(1.0, chart_raw + boosts["chart"])
+    if alignment_score >= 0.55 and not any(
+        marker in text.lower() for marker in ("chart", "graph", "x-axis", "y-axis")
+    ):
+        chart_score *= 0.5
 
     # -------------------------------------------------------------
     # 4. Text Modality Score
@@ -139,6 +181,8 @@ def profile_multimodal(
     # Penalize plain text score if strongly identified as code
     if code_score >= 0.6:
         text_raw = min(text_raw, 0.45)
+    elif paragraph_evidence:
+        text_raw = min(1.0, text_raw + 0.20)
 
     text_score = min(1.0, text_raw + boosts["text"])
 

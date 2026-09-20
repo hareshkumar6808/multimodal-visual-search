@@ -1,5 +1,7 @@
 import base64
+import socket
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -26,6 +28,7 @@ class OpenAICompatibleProvider(Provider):
         self.api_key = api_key
         self.supports_vision = supports_vision
         self.timeout = timeout
+        self.transport_provided = transport is not None
         self.client = httpx.AsyncClient(timeout=timeout, transport=transport)
 
     @property
@@ -36,6 +39,22 @@ class OpenAICompatibleProvider(Provider):
     @property
     def capabilities(self) -> frozenset[str]:
         return frozenset({"text", "vision"} if self.supports_vision else {"text"})
+
+    def available(self) -> bool:
+        if not super().available():
+            return False
+        if self.name != "local" or self.transport_provided or not self.base_url:
+            return True
+        parsed = urlparse(self.base_url)
+        host = parsed.hostname
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        if not host:
+            return False
+        try:
+            with socket.create_connection((host, port), timeout=0.25):
+                return True
+        except OSError:
+            return False
 
     async def _generate(self, prompt: str, image_bytes: bytes | None, mime_type: str) -> str:
         if not self.base_url or not self.model:
@@ -53,7 +72,7 @@ class OpenAICompatibleProvider(Provider):
         body = {
             "model": self.model,
             "messages": [{"role": "user", "content": user_content}],
-            "temperature": 0.2,
+            "temperature": 0.0,
             "max_tokens": 1024,
         }
         response = await self.client.post(

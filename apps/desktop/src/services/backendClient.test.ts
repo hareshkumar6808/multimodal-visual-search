@@ -4,7 +4,13 @@ import type { AnalyzePayload, AnalyzeResponse } from "../types/api";
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 
-import { analyzeCapture, BackendUnavailableError, normalizeBackendError } from "./backendClient";
+import {
+  analyzeCapture,
+  BackendRequestError,
+  BackendUnavailableError,
+  normalizeBackendError,
+  ProviderUnavailableError,
+} from "./backendClient";
 
 const payload: AnalyzePayload = {
   request_id: "request-123",
@@ -37,8 +43,24 @@ describe("analyzeCapture", () => {
   });
 
   it("maps connection failures to the required backend unavailable message", () => {
-    const error = normalizeBackendError(new Error("connection refused"));
+    const error = normalizeBackendError({ kind: "network", message: "connection refused" });
     expect(error).toBeInstanceOf(BackendUnavailableError);
     expect(error.message).toBe("Backend unavailable. Start the Stage 1 orchestration service and retry.");
+  });
+
+  it("does not classify provider HTTP 503 as a disconnected backend", () => {
+    const error = normalizeBackendError({
+      kind: "provider_unavailable",
+      message: "AI provider is not configured.",
+      status: 503,
+    });
+    expect(error).toBeInstanceOf(ProviderUnavailableError);
+    expect(error).not.toBeInstanceOf(BackendUnavailableError);
+  });
+
+  it("keeps backend HTTP failures separate from network failures", () => {
+    const error = normalizeBackendError({ kind: "server", message: "Internal error", status: 500 });
+    expect(error).toBeInstanceOf(BackendRequestError);
+    expect(error).not.toBeInstanceOf(BackendUnavailableError);
   });
 });

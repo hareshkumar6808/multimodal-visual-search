@@ -1,7 +1,11 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { ArrowUp, Image as ImageIcon, LoaderCircle, RotateCcw, Sparkles } from "lucide-react";
 import { APP_CONFIG } from "../config/app";
-import { analyzeCapture, BackendUnavailableError } from "../services/backendClient";
+import {
+  analyzeCapture,
+  BackendUnavailableError,
+  ProviderUnavailableError,
+} from "../services/backendClient";
 import { desktopBridge } from "../services/desktopBridge";
 import type { AnalyzeResponse, CaptureResult } from "../types/api";
 import { TracePanel } from "./TracePanel";
@@ -11,7 +15,9 @@ export function ChatWindow({ captureId }: { captureId: string | null }) {
   const [query, setQuery] = useState("");
   const [response, setResponse] = useState<AnalyzeResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  const [backendStatus, setBackendStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
+  const [aiProvider, setAiProvider] = useState<string | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -26,8 +32,9 @@ export function ChatWindow({ captureId }: { captureId: string | null }) {
           setQuery("");
           setResponse(null);
           setError(null);
+          void desktopBridge.markCaptureDelivered(result.capture_id);
         })
-        .catch((reason) => setError(String(reason)));
+        .catch((reason) => setError(new Error(String(reason))));
     };
     loadCapture();
     window.addEventListener("focus", loadCapture);
@@ -35,6 +42,34 @@ export function ChatWindow({ captureId }: { captureId: string | null }) {
   }, [captureId]);
 
   useEffect(() => input.current?.focus(), [capture]);
+
+  useEffect(() => {
+    let active = true;
+    let checking = false;
+    const checkHealth = async () => {
+      if (checking) return;
+      checking = true;
+      try {
+        const health = await desktopBridge.checkBackendHealth();
+        if (active) {
+          setBackendStatus(health.connected ? "connected" : "disconnected");
+          setAiProvider(health.provider);
+        }
+      } catch {
+        if (active) setBackendStatus("disconnected");
+      } finally {
+        checking = false;
+      }
+    };
+    void checkHealth();
+    const interval = window.setInterval(() => void checkHealth(), 5_000);
+    window.addEventListener("focus", checkHealth);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", checkHealth);
+    };
+  }, []);
 
   async function submit(event?: FormEvent, action?: string) {
     event?.preventDefault();
@@ -49,8 +84,13 @@ export function ChatWindow({ captureId }: { captureId: string | null }) {
         query: effectiveQuery,
       });
       setResponse(result);
+      setBackendStatus("connected");
+      setAiProvider(result.route.provider);
     } catch (reason) {
-      setError(reason instanceof BackendUnavailableError ? reason.message : `Request failed: ${String(reason)}`);
+      const requestError = reason instanceof Error ? reason : new Error(String(reason));
+      setError(requestError);
+      setBackendStatus(requestError instanceof BackendUnavailableError ? "disconnected" : "connected");
+      if (requestError instanceof ProviderUnavailableError) setAiProvider(null);
     } finally {
       setLoading(false);
     }
@@ -61,6 +101,12 @@ export function ChatWindow({ captureId }: { captureId: string | null }) {
       <header className="chat-header">
         <div className="app-mark"><Sparkles /></div>
         <div><strong>Visual Search</strong><small>Desktop capture</small></div>
+        <div className="service-statuses">
+          <span className={`backend-status ${backendStatus}`}>Backend: {backendStatus}</span>
+          <span className={`ai-status ${aiProvider ? "ready" : "unavailable"}`}>
+            AI: {aiProvider ? `${aiProvider} ready` : "not configured"}
+          </span>
+        </div>
         <button className="secondary icon-button" title="New capture" onClick={() => desktopBridge.beginRectangleCapture()}><RotateCcw /></button>
       </header>
 
@@ -75,9 +121,20 @@ export function ChatWindow({ captureId }: { captureId: string | null }) {
         {loading && <div className="analysis-state"><LoaderCircle className="spin" /><div><strong>Understanding screenshot</strong><small>The backend is selecting the best expert automatically…</small></div></div>}
 
         {error && (
-          <div className="error-banner" role="alert">
-            <strong>Couldn’t analyze this capture</strong>
-            <p>{error}</p>
+          <div className={`error-banner${error instanceof ProviderUnavailableError ? " provider-unavailable" : ""}`} role="alert">
+            <strong>{error instanceof ProviderUnavailableError ? "AI provider unavailable" : "Couldn’t analyze this capture"}</strong>
+            <p>{error.message}</p>
+            {error instanceof ProviderUnavailableError && (
+              <details className="provider-trace">
+                <summary>Show Process</summary>
+                <ol>
+                  <li>Capture received <span>✓</span></li>
+                  <li>Perception and OCR completed <span>✓</span></li>
+                  <li>MIR, intent, and routing completed <span>✓</span></li>
+                  <li>Provider unavailable</li>
+                </ol>
+              </details>
+            )}
             <button onClick={() => void submit()}>Retry</button>
           </div>
         )}

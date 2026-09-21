@@ -1,5 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AnalyzePayload, AnalyzeResponse } from "../types/api";
+import type {
+  AnalyzePayload,
+  AnalyzeResponse,
+  ChatPayload,
+  ConversationDetail,
+  ConversationSummary,
+} from "../types/api";
 
 interface NativeCommandError {
   kind?: string;
@@ -65,6 +71,30 @@ export function normalizeBackendError(error: unknown): Error {
 export async function analyzeCapture(captureId: string, payload: AnalyzePayload): Promise<AnalyzeResponse> {
   try {
     return await invoke<AnalyzeResponse>("analyze_capture", { captureId, payload });
+  } catch (error) {
+    throw normalizeBackendError(error);
+  }
+}
+
+export async function continueConversation(payload: ChatPayload): Promise<AnalyzeResponse> {
+  try {
+    return await invoke<AnalyzeResponse>("continue_conversation", { payload });
+  } catch (error) {
+    throw normalizeBackendError(error);
+  }
+}
+
+export async function listConversations(): Promise<ConversationSummary[]> {
+  try {
+    return await invoke<ConversationSummary[]>("list_conversations");
+  } catch (error) {
+    throw normalizeBackendError(error);
+  }
+}
+
+export async function getConversation(conversationId: string): Promise<ConversationDetail> {
+  try {
+    return await invoke<ConversationDetail>("get_conversation", { conversationId });
   } catch (error) {
     throw normalizeBackendError(error);
   }

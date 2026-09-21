@@ -37,7 +37,15 @@ class CaptureContext(BaseModel):
 
 class AnalyzePayload(BaseModel):
     request_id: str = Field(min_length=1, max_length=128)
+    conversation_id: str | None = Field(default=None, min_length=1, max_length=128)
     query: str | None = None
+    context: CaptureContext = Field(default_factory=CaptureContext)
+
+
+class ChatPayload(BaseModel):
+    request_id: str = Field(min_length=1, max_length=128)
+    conversation_id: str = Field(min_length=1, max_length=128)
+    query: str = Field(min_length=1, max_length=20_000)
     context: CaptureContext = Field(default_factory=CaptureContext)
 
 
@@ -140,12 +148,37 @@ class Metrics(BaseModel):
 
 class AnalyzeResponse(BaseModel):
     request_id: str
+    conversation_id: str | None = None
+    message_id: str | None = None
     answer: str | None
     suggested_actions: list[str] = Field(default_factory=list)
     mir_summary: MIRSummary
     route: RouteInfo
     trace: list[TraceEvent]
     metrics: Metrics
+
+
+class ConversationMessage(BaseModel):
+    id: str
+    role: Literal["user", "assistant", "system"]
+    content: str
+    timestamp: int
+    has_image: bool = False
+    response: AnalyzeResponse | None = None
+
+
+class ConversationSummary(BaseModel):
+    id: str
+    title: str
+    capture_id: str
+    primary_modality: Modality
+    created_at: int
+    updated_at: int
+
+
+class ConversationDetail(ConversationSummary):
+    messages: list[ConversationMessage]
+    image_data_url: str | None = None
 
 
 class ProviderStatus(BaseModel):

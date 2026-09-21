@@ -2,7 +2,8 @@ import asyncio
 
 import pytest
 
-from contracts.models import MIR, AnalyzePayload, ImageInfo, Modalities, OCRResult
+from contracts.models import MIR, AnalyzePayload, ChatPayload, ImageInfo, Modalities, OCRResult
+from services.orchestrator.conversations import ConversationStore
 from services.orchestrator.perception import MockPerceptionAdapter
 from services.orchestrator.providers.mock import MockProvider
 from services.orchestrator.providers.registry import ProviderRegistry
@@ -148,3 +149,59 @@ async def test_trace_metrics_and_concurrent_request_isolation() -> None:
             + response.metrics.routing_ms
             + response.metrics.provider_ms
         )
+
+
+async def test_three_turn_conversation_reuses_mir_and_preserves_history() -> None:
+    class CountingPerception(MockPerceptionAdapter):
+        calls = 0
+
+        async def analyze_capture(self, image_bytes, context, request_id):  # type: ignore[no-untyped-def]
+            self.calls += 1
+            return await super().analyze_capture(image_bytes, context, request_id)
+
+    perception = CountingPerception(make_mir("code"))
+    provider = MockProvider(name="local", response="Use arr[2].")
+    service = Orchestrator(
+        perception,
+        RuleRouter(),
+        ProviderRegistry([provider]),
+        ConversationStore(),
+    )
+    first = await service.analyze(
+        b"code image",
+        "image/png",
+        AnalyzePayload(
+            request_id="capture-1",
+            conversation_id="conversation-1",
+            query="Why is this failing?",
+        ),
+    )
+    second = await service.chat(
+        ChatPayload(
+            request_id="follow-up-1",
+            conversation_id="conversation-1",
+            query="How do I fix it?",
+        )
+    )
+    third = await service.chat(
+        ChatPayload(
+            request_id="follow-up-2",
+            conversation_id="conversation-1",
+            query="Give me the full corrected code.",
+        )
+    )
+
+    assert perception.calls == 1
+    assert {first.conversation_id, second.conversation_id, third.conversation_id} == {
+        "conversation-1"
+    }
+    assert second.metrics.perception_ms == third.metrics.perception_ms == 0
+    assert second.trace[0].stage == third.trace[0].stage == "context_reused"
+    assert "Why is this failing?" in provider.prompts[1]
+    assert "How do I fix it?" in provider.prompts[2]
+    assert "Use arr[2]." in provider.prompts[2]
+    detail = service.conversations.get_conversation("conversation-1")
+    assert len(detail.messages) == 6
+    assistant_traces = [message.response.trace for message in detail.messages if message.response]
+    assert len(assistant_traces) == 3
+    assert assistant_traces[0] is not assistant_traces[1]

@@ -6,8 +6,16 @@ from typing import Annotated, cast
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
 from pydantic import ValidationError
 
-from contracts.models import AnalyzePayload, AnalyzeResponse, ProviderStatus
+from contracts.models import (
+    AnalyzePayload,
+    AnalyzeResponse,
+    ChatPayload,
+    ConversationDetail,
+    ConversationSummary,
+    ProviderStatus,
+)
 from services.orchestrator.config import Settings, get_settings
+from services.orchestrator.conversations import ConversationNotFoundError, ConversationStore
 from services.orchestrator.images import InvalidImageError, validate_image
 from services.orchestrator.perception import PerceptionUnavailableError, build_perception_adapter
 from services.orchestrator.providers.registry import (
@@ -29,6 +37,7 @@ def build_orchestrator(settings: Settings) -> Orchestrator:
         perception,
         RuleRouter(settings.perception_confidence_threshold),
         ProviderRegistry.from_settings(settings),
+        ConversationStore(settings.conversation_db_path),
     )
 
 
@@ -39,6 +48,7 @@ def create_app(orchestrator: Orchestrator | None = None) -> FastAPI:
         active = cast(Orchestrator | None, application.state.orchestrator)
         if active is not None:
             await active.providers.aclose()
+            active.conversations.close()
 
     app = FastAPI(title="Multimodal Visual Search Orchestrator", version="0.1.0", lifespan=lifespan)
     app.state.orchestrator = orchestrator
@@ -101,6 +111,36 @@ def create_app(orchestrator: Orchestrator | None = None) -> FastAPI:
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
         except ResponseValidationError as exc:
             raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+
+    @app.post("/api/chat", response_model=AnalyzeResponse)
+    async def chat(
+        payload: ChatPayload,
+        service: Annotated[Orchestrator, Depends(get_orchestrator)],
+    ) -> AnalyzeResponse:
+        try:
+            return await service.chat(payload)
+        except ConversationNotFoundError as exc:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+        except NoCompatibleProviderError as exc:
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
+        except ResponseValidationError as exc:
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+
+    @app.get("/api/conversations", response_model=list[ConversationSummary])
+    async def conversations(
+        service: Annotated[Orchestrator, Depends(get_orchestrator)],
+    ) -> list[ConversationSummary]:
+        return service.conversations.list_conversations()
+
+    @app.get("/api/conversations/{conversation_id}", response_model=ConversationDetail)
+    async def conversation(
+        conversation_id: str,
+        service: Annotated[Orchestrator, Depends(get_orchestrator)],
+    ) -> ConversationDetail:
+        try:
+            return service.conversations.get_conversation(conversation_id)
+        except ConversationNotFoundError as exc:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
 
     return app
 

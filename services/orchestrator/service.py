@@ -1,14 +1,18 @@
 import logging
 from time import perf_counter
+from uuid import uuid4
 
 from contracts.models import (
+    MIR,
     AnalyzePayload,
     AnalyzeResponse,
+    ChatPayload,
     Metrics,
     MIRSummary,
     RouteInfo,
     TraceEvent,
 )
+from services.orchestrator.conversations import ConversationStore
 from services.orchestrator.experts import SUGGESTIONS
 from services.orchestrator.intent import classify_intent
 from services.orchestrator.perception import PerceptionAdapter
@@ -22,16 +26,22 @@ logger = logging.getLogger(__name__)
 
 class Orchestrator:
     def __init__(
-        self, perception: PerceptionAdapter, router: RuleRouter, providers: ProviderRegistry
+        self,
+        perception: PerceptionAdapter,
+        router: RuleRouter,
+        providers: ProviderRegistry,
+        conversations: ConversationStore | None = None,
     ) -> None:
         self.perception = perception
         self.router = router
         self.providers = providers
+        self.conversations = conversations or ConversationStore()
 
     async def analyze(
         self, image_bytes: bytes, mime_type: str, payload: AnalyzePayload
     ) -> AnalyzeResponse:
         total_started = perf_counter()
+        conversation_id = payload.conversation_id or str(uuid4())
         trace = [TraceEvent(stage="capture_received", status="complete")]
 
         perception_started = perf_counter()
@@ -55,7 +65,69 @@ class Orchestrator:
                 duration_ms=perception_ms,
             )
         )
+        self.conversations.save_capture(
+            conversation_id, payload.request_id, mir, image_bytes, mime_type
+        )
+        return await self._answer_turn(
+            mir=mir,
+            payload=payload,
+            conversation_id=conversation_id,
+            image_bytes=image_bytes,
+            mime_type=mime_type,
+            history=[],
+            trace=trace,
+            perception_ms=perception_ms,
+            total_started=total_started,
+            user_has_image=True,
+        )
 
+    async def chat(self, payload: ChatPayload) -> AnalyzeResponse:
+        total_started = perf_counter()
+        mir, image_bytes, mime_type, _capture_id = self.conversations.capture_context(
+            payload.conversation_id
+        )
+        history = self.conversations.prompt_history(payload.conversation_id)
+        analyze_payload = AnalyzePayload(
+            request_id=payload.request_id,
+            conversation_id=payload.conversation_id,
+            query=payload.query,
+            context=payload.context,
+        )
+        trace = [
+            TraceEvent(
+                stage="context_reused",
+                status="complete",
+                message="Existing OCR and MIR reused; perception skipped",
+                duration_ms=0,
+            )
+        ]
+        return await self._answer_turn(
+            mir=mir,
+            payload=analyze_payload,
+            conversation_id=payload.conversation_id,
+            image_bytes=image_bytes,
+            mime_type=mime_type,
+            history=history,
+            trace=trace,
+            perception_ms=0,
+            total_started=total_started,
+            user_has_image=False,
+        )
+
+    async def _answer_turn(
+        self,
+        *,
+        mir: MIR,
+        payload: AnalyzePayload,
+        conversation_id: str,
+        image_bytes: bytes,
+        mime_type: str,
+        history: list[tuple[str, str]],
+        trace: list[TraceEvent],
+        perception_ms: int,
+        total_started: float,
+        user_has_image: bool,
+    ) -> AnalyzeResponse:
         intent = classify_intent(payload.query, mir.primary_modality)
         logger.info("INTENT_SELECTED request_id=%s intent=%s", payload.request_id, intent)
         trace.append(TraceEvent(stage="intent", status="complete", message=intent.title()))
@@ -77,17 +149,21 @@ class Orchestrator:
                 duration_ms=routing_ms,
             )
         )
+        message_id = str(uuid4())
 
         if intent == "suggest":
+            suggestions = SUGGESTIONS[mir.primary_modality]
             trace.append(
                 TraceEvent(
                     stage="provider", status="skipped", message="Suggestions generated locally"
                 )
             )
-            return AnalyzeResponse(
+            response = AnalyzeResponse(
                 request_id=payload.request_id,
+                conversation_id=conversation_id,
+                message_id=message_id,
                 answer=None,
-                suggested_actions=SUGGESTIONS[mir.primary_modality],
+                suggested_actions=suggestions,
                 mir_summary=MIRSummary(
                     primary_modality=mir.primary_modality, confidence=mir.overall_confidence
                 ),
@@ -107,8 +183,17 @@ class Orchestrator:
                     api_calls=0,
                 ),
             )
+            self.conversations.append_exchange(
+                conversation_id,
+                payload.query or "",
+                "Suggested actions: " + ", ".join(suggestions),
+                response,
+                user_has_image=user_has_image,
+                assistant_id=message_id,
+            )
+            return response
 
-        prompt = build_prompt(expert_route.expert, mir, payload)
+        prompt = build_prompt(expert_route.expert, mir, payload, history)
         (
             provider_name,
             result,
@@ -164,9 +249,10 @@ class Orchestrator:
             provider_name,
             total_ms,
         )
-
-        return AnalyzeResponse(
+        response = AnalyzeResponse(
             request_id=payload.request_id,
+            conversation_id=conversation_id,
+            message_id=message_id,
             answer=result.text,
             suggested_actions=[],
             mir_summary=MIRSummary(
@@ -188,3 +274,12 @@ class Orchestrator:
                 api_calls=len(failed_providers) + 1,
             ),
         )
+        self.conversations.append_exchange(
+            conversation_id,
+            payload.query or "",
+            result.text,
+            response,
+            user_has_image=user_has_image,
+            assistant_id=message_id,
+        )
+        return response

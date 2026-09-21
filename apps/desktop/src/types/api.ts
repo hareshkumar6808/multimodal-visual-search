@@ -16,7 +16,15 @@ export interface CaptureContext {
 
 export interface AnalyzePayload {
   request_id: string;
+  conversation_id?: string | null;
   query: string | null;
+  context: CaptureContext;
+}
+
+export interface ChatPayload {
+  request_id: string;
+  conversation_id: string;
+  query: string;
   context: CaptureContext;
 }
 
@@ -53,6 +61,8 @@ export interface AnalyzeMetrics {
 
 export interface AnalyzeResponse {
   request_id: string;
+  conversation_id?: string | null;
+  message_id?: string | null;
   answer: string | null;
   suggested_actions: string[];
   mir_summary: MirSummary;
@@ -72,6 +82,29 @@ export interface CaptureResult {
   image_data_url: string;
   payload: AnalyzePayload;
   captured_at_ms: number;
+}
+
+export interface StoredConversationMessage {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  timestamp: number;
+  has_image: boolean;
+  response: AnalyzeResponse | null;
+}
+
+export interface ConversationSummary {
+  id: string;
+  title: string;
+  capture_id: string;
+  primary_modality: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface ConversationDetail extends ConversationSummary {
+  messages: StoredConversationMessage[];
+  image_data_url: string | null;
 }
 
 export interface BackendHealth {

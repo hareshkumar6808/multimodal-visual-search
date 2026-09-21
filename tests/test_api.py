@@ -187,3 +187,50 @@ def test_complete_code_flow_uses_extracted_text_without_uploading_image() -> Non
     assert body["metrics"]["cloud_image_uploaded"] is False
     assert provider.received_images == [False]
     assert code in provider.prompts[0]
+
+
+def test_follow_up_api_reuses_conversation_and_exposes_history() -> None:
+    mir = MIR(
+        request_id="original",
+        image=ImageInfo(sha256="a" * 64, width=100, height=100),
+        modalities=Modalities(text=0.98),
+        primary_modality="text",
+        ocr=OCRResult(text="The capital of France is Paris.", confidence=0.98),
+        overall_confidence=0.98,
+    )
+    provider = MockProvider(name="local", response="Paris is the capital of France.")
+    service = Orchestrator(MockPerceptionAdapter(mir), RuleRouter(), ProviderRegistry([provider]))
+    client = TestClient(create_app(service))
+    first = client.post(
+        "/api/analyze",
+        files={"image": ("text.png", PNG, "image/png")},
+        data={
+            "payload_json": json.dumps(
+                {
+                    "request_id": "text-first",
+                    "conversation_id": "text-conversation",
+                    "query": "Explain this.",
+                    "context": {},
+                }
+            )
+        },
+    )
+    second = client.post(
+        "/api/chat",
+        json={
+            "request_id": "text-second",
+            "conversation_id": "text-conversation",
+            "query": "Which country is that city in?",
+            "context": {},
+        },
+    )
+    history = client.get("/api/conversations/text-conversation")
+
+    assert first.status_code == second.status_code == history.status_code == 200
+    assert second.json()["conversation_id"] == "text-conversation"
+    assert second.json()["metrics"]["perception_ms"] == 0
+    assert second.json()["trace"][0]["stage"] == "context_reused"
+    assert "Explain this." in provider.prompts[1]
+    assert len(history.json()["messages"]) == 4
+    assert history.json()["messages"][1]["response"]["trace"][0]["stage"] == "capture_received"
+    assert history.json()["messages"][3]["response"]["trace"][0]["stage"] == "context_reused"

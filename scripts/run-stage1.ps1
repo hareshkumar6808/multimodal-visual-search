@@ -51,7 +51,7 @@ $rustBin = Join-Path $root ".tools\msys2\msys64\mingw64\bin"
 $cargoHome = Join-Path $root ".tools\cargo"
 $rustupHome = Join-Path $root ".tools\rustup"
 $desktopDir = Join-Path $root "apps\desktop"
-foreach ($required in @($llamaServer, $localModel, $python, $rustBin, $cargoHome, $rustupHome, $desktopDir)) {
+foreach ($required in @($llamaServer, $localModel, $python, $desktopDir)) {
     if (-not (Test-Path -LiteralPath $required)) { throw "Required Stage 1 dependency is missing: $required" }
 }
 
@@ -59,12 +59,23 @@ $env:TESSERACT_CMD = Find-Tesseract
 $env:LOCAL_BASE_URL = "http://127.0.0.1:11434/v1"
 $env:LOCAL_MODEL = "qwen2.5-3b-instruct"
 $env:LOCAL_SUPPORTS_VISION = "false"
-$env:PATH = "$rustBin;$env:PATH"
-$env:CARGO_HOME = $cargoHome
-$env:RUSTUP_HOME = $rustupHome
-$env:CARGO_SOURCE_LOCAL_SPARSE_REGISTRY = "sparse+https://index.crates.io/"
-$env:CARGO_TARGET_DIR = Join-Path $env:TEMP "mvs-stage1-msys-target"
-$env:RUSTFLAGS = "-C link-arg=-Wl,--exclude-all-symbols"
+if ((Test-Path -LiteralPath (Join-Path $rustBin "cargo.exe")) -and
+    (Test-Path -LiteralPath $cargoHome) -and (Test-Path -LiteralPath $rustupHome)) {
+    $webViewLoader = Get-ChildItem (Join-Path $cargoHome "registry\src") -Filter "WebView2Loader.dll" -Recurse -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -match "[\\/]x64[\\/]WebView2Loader\.dll$" } |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 1
+    if (-not $webViewLoader) { throw "WebView2Loader.dll was not found in the repository-local Cargo cache." }
+    $env:PATH = "$($webViewLoader.DirectoryName);$rustBin;$env:PATH"
+    $env:CARGO_HOME = $cargoHome
+    $env:RUSTUP_HOME = $rustupHome
+    $env:RUSTUP_TOOLCHAIN = "stable-x86_64-pc-windows-gnu"
+    $env:CARGO_SOURCE_LOCAL_SPARSE_REGISTRY = "sparse+https://index.crates.io/"
+    $env:CARGO_TARGET_DIR = Join-Path $env:TEMP "mvs-stage1-msys-target"
+    $env:RUSTFLAGS = "-C link-arg=-Wl,--exclude-all-symbols"
+} elseif (-not (Get-Command cargo.exe -ErrorAction SilentlyContinue)) {
+    throw "Rust/Cargo was not found. Install Rust stable before running Stage 1."
+}
 
 Write-Host "Starting local AI provider..."
 $local = Start-Process -FilePath $llamaServer -WorkingDirectory $root -WindowStyle Hidden -PassThru `
@@ -95,7 +106,7 @@ $desktop = Start-Process -FilePath "npm.cmd" -WorkingDirectory $desktopDir -Wind
 Save-ProcessState "desktop" $desktop
 
 $nativeReady = $false
-foreach ($attempt in 1..120) {
+foreach ($attempt in 1..600) {
     $native = Get-Process -Name "multimodal-visual-search-desktop" -ErrorAction SilentlyContinue |
         Sort-Object StartTime -Descending | Select-Object -First 1
     if ($native) {
@@ -106,7 +117,7 @@ foreach ($attempt in 1..120) {
     if ($desktop.HasExited) { throw "Tauri launcher exited. See $logDir\desktop.err.log" }
     Start-Sleep -Milliseconds 500
 }
-if (-not $nativeReady) { throw "The native Tauri process did not launch within 60 seconds." }
+if (-not $nativeReady) { throw "The native Tauri process did not launch within 5 minutes." }
 
 Write-Host ""
 Write-Host "Stage 1 is ready."

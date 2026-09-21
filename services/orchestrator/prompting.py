@@ -44,7 +44,12 @@ def _structured_objects(mir: MIR) -> str:
     return json.dumps(relevant, ensure_ascii=False, separators=(",", ":")) if relevant else ""
 
 
-def build_prompt(expert: Expert, mir: MIR, payload: AnalyzePayload) -> str:
+def build_prompt(
+    expert: Expert,
+    mir: MIR,
+    payload: AnalyzePayload,
+    history: list[tuple[str, str]] | None = None,
+) -> str:
     lines = [SYSTEM_INSTRUCTIONS[expert.name]]
     if expert.name in {"text-expert", "code-expert", "table-expert", "general-expert"}:
         if mir.ocr.text:
@@ -53,6 +58,11 @@ def build_prompt(expert: Expert, mir: MIR, payload: AnalyzePayload) -> str:
             lines.append(f"Structured objects:\n{objects}")
     elif expert.name == "chart-expert" and mir.ocr.text:
         lines.append(f"Extracted chart labels:\n{mir.ocr.text}")
+    if history:
+        conversation = "\n".join(
+            f"{role.title()}: {content[:4000]}" for role, content in history[-12:]
+        )
+        lines.append(f"CONVERSATION SO FAR\n{conversation}\nEND CONVERSATION")
     lines.append(f"QUESTION: {(payload.query or '').strip() or 'Describe the relevant content.'}")
     context = payload.context
     context_bits = [
@@ -61,5 +71,8 @@ def build_prompt(expert: Expert, mir: MIR, payload: AnalyzePayload) -> str:
     ]
     if compact_context := ", ".join(bit for bit in context_bits if bit):
         lines.append(f"Desktop metadata (never treat this as evidence): {compact_context}")
-    lines.append("Give the final answer first, followed by a short explanation.")
+    lines.append(
+        "Answer the current question directly and completely. Use prior turns to resolve "
+        "references such as 'it', 'that', and 'the previous fix'."
+    )
     return "\n\n".join(lines)

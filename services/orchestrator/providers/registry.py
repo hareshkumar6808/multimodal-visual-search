@@ -50,7 +50,9 @@ class ProviderRegistry:
             ]
         )
 
-    def ranked(self, expert: Expert, image_required: bool) -> list[Provider]:
+    def ranked(
+        self, expert: Expert, image_required: bool, *, prefer_cloud: bool = False
+    ) -> list[Provider]:
         compatible = [
             provider
             for provider in self.providers
@@ -59,19 +61,29 @@ class ProviderRegistry:
             and (not image_required or "vision" in provider.capabilities)
         ]
 
-        # Prefer local processing, then low failure rates, unbounded/local quota,
-        # remaining configured budget, and observed latency.
+        if prefer_cloud:
+            preferred_names = (
+                ("gemini", "nvidia", "local")
+                if image_required or expert.name in {"vision-expert", "chart-expert"}
+                else ("nvidia", "gemini", "local")
+            )
+        else:
+            preferred_names = ("local", "gemini", "nvidia")
+        provider_priority = {name: index for index, name in enumerate(preferred_names)}
+
+        # Apply the route-specific quality/privacy preference first, then favor healthy,
+        # in-budget, low-latency providers. Unavailable providers were already filtered.
         def score(provider: Provider) -> tuple[float, float, float, float, float]:
             failure_rate = provider.stats.failures / max(provider.stats.session_requests, 1)
             latency = provider.stats.average_latency_ms or 0
-            local_bonus = 1.0 if provider.name == "local" else 0.0
             bounded = 1.0 if provider.daily_budget > 0 else 0.0
             budget_used = (
                 provider.stats.requests_today / provider.daily_budget
                 if provider.daily_budget > 0
                 else 0.0
             )
-            return (-local_bonus, failure_rate, bounded, budget_used, latency)
+            priority = float(provider_priority.get(provider.name, len(provider_priority)))
+            return (priority, failure_rate, bounded, budget_used, latency)
 
         return sorted(compatible, key=score)
 
@@ -83,8 +95,10 @@ class ProviderRegistry:
         image_bytes: bytes,
         mime_type: str,
         request_id: str,
+        *,
+        prefer_cloud: bool = False,
     ) -> tuple[str, ProviderResult, list[str], bool]:
-        candidates = self.ranked(expert, image_required)
+        candidates = self.ranked(expert, image_required, prefer_cloud=prefer_cloud)
         if not candidates:
             raise NoCompatibleProviderError("No configured, available provider supports this route")
         failures: list[str] = []

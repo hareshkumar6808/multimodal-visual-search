@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     gemini_api_key: str | None = None
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
-    gemini_model: str | None = None
+    gemini_model: str | None = "gemini-2.5-flash"
     gemini_daily_budget: int = Field(default=0, ge=0)
 
     local_base_url: str | None = None

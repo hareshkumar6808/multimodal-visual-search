@@ -194,6 +194,14 @@ class Orchestrator:
             return response
 
         prompt = build_prompt(expert_route.expert, mir, payload, history)
+        prefer_cloud = (
+            expert_route.image_required
+            or expert_route.expert.name
+            in {"code-expert", "table-expert", "chart-expert", "vision-expert"}
+            or intent in {"explain", "debug", "compare", "calculate", "search", "general"}
+            or len(history) >= 4
+            or len(mir.ocr.text) > 1_200
+        )
         (
             provider_name,
             result,
@@ -206,6 +214,7 @@ class Orchestrator:
             image_bytes,
             mime_type,
             payload.request_id,
+            prefer_cloud=prefer_cloud,
         )
         logger.info(
             "PROVIDER_SELECTED request_id=%s provider=%s", payload.request_id, provider_name

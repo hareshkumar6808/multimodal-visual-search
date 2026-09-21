@@ -1,47 +1,82 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { ArrowUp, Image as ImageIcon, LoaderCircle, RotateCcw, Sparkles } from "lucide-react";
+import {
+  ArrowUp,
+  History,
+  LoaderCircle,
+  MessageSquarePlus,
+  RotateCcw,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { APP_CONFIG } from "../config/app";
+import {
+  appendPendingTurn,
+  canSend,
+  conversationFromCapture,
+  emptyConversation,
+  failAssistant,
+  removeDraftAttachment,
+  resolveAssistant,
+  restoreConversation,
+  retryAssistant,
+  type ConversationState,
+} from "../conversationState";
 import {
   analyzeCapture,
   BackendUnavailableError,
+  continueConversation,
+  getConversation,
+  listConversations,
   ProviderUnavailableError,
 } from "../services/backendClient";
 import { desktopBridge } from "../services/desktopBridge";
-import type { AnalyzeResponse, CaptureResult } from "../types/api";
+import type { CaptureContext, ConversationSummary } from "../types/api";
 import { TracePanel } from "./TracePanel";
 
+const fallbackContext: CaptureContext = {
+  active_app: null,
+  window_title: null,
+  selection_mode: "rectangle",
+  bounds: { x: 0, y: 0, width: 1, height: 1 },
+};
+
+function newId() {
+  return crypto.randomUUID();
+}
+
 export function ChatWindow({ captureId }: { captureId: string | null }) {
-  const [capture, setCapture] = useState<CaptureResult | null>(null);
+  const [state, setState] = useState<ConversationState>(() => emptyConversation(newId()));
   const [query, setQuery] = useState("");
-  const [response, setResponse] = useState<AnalyzeResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [backendStatus, setBackendStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
   const [aiProvider, setAiProvider] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState<ConversationSummary[]>([]);
+  const [preview, setPreview] = useState<string | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
+  const timeline = useRef<HTMLDivElement>(null);
+  const stickToBottom = useRef(true);
 
   useEffect(() => {
-    if (!captureId) {
-      setCapture(null);
-      return;
-    }
-    const loadCapture = () => {
-      void desktopBridge.getCapture(captureId)
-        .then((result) => {
-          setCapture(result);
-          setQuery("");
-          setResponse(null);
-          setError(null);
-          void desktopBridge.markCaptureDelivered(result.capture_id);
-        })
-        .catch((reason) => setError(new Error(String(reason))));
-    };
-    loadCapture();
-    window.addEventListener("focus", loadCapture);
-    return () => window.removeEventListener("focus", loadCapture);
-  }, [captureId]);
+    if (!captureId || captureId === state.conversation.activeCaptureId) return;
+    void desktopBridge.getCapture(captureId)
+      .then((capture) => {
+        setState(conversationFromCapture(newId(), capture, newId()));
+        setQuery("");
+        setProcessingId(null);
+        setHistoryOpen(false);
+        stickToBottom.current = true;
+        void desktopBridge.markCaptureDelivered(resultCaptureId(capture));
+      })
+      .catch(() => undefined);
+  }, [captureId, state.conversation.activeCaptureId]);
 
-  useEffect(() => input.current?.focus(), [capture]);
+  useEffect(() => input.current?.focus(), [state.draftAttachment]);
+
+  useEffect(() => {
+    if (!stickToBottom.current) return;
+    timeline.current?.scrollTo({ top: timeline.current.scrollHeight, behavior: "smooth" });
+  }, [state.conversation.messages]);
 
   useEffect(() => {
     let active = true;
@@ -71,102 +106,174 @@ export function ChatWindow({ captureId }: { captureId: string | null }) {
     };
   }, []);
 
-  async function submit(event?: FormEvent, action?: string) {
-    event?.preventDefault();
-    if (!capture || loading) return;
-    const effectiveQuery = (action ?? query).trim() || null;
-    setLoading(true);
-    setError(null);
-    setResponse(null);
+  async function refreshHistory() {
     try {
-      const result = await analyzeCapture(capture.capture_id, {
-        ...capture.payload,
-        query: effectiveQuery,
-      });
-      setResponse(result);
+      setHistory(await listConversations());
+    } catch {
+      setHistory([]);
+    }
+  }
+
+  async function toggleHistory() {
+    const opening = !historyOpen;
+    setHistoryOpen(opening);
+    if (opening) await refreshHistory();
+  }
+
+  async function openConversation(conversationId: string) {
+    const detail = await getConversation(conversationId);
+    setState(restoreConversation(detail));
+    setQuery("");
+    setHistoryOpen(false);
+    setProcessingId(null);
+    stickToBottom.current = true;
+  }
+
+  async function executeTurn(
+    snapshot: ConversationState,
+    text: string,
+    assistantId: string,
+    firstTurn: boolean,
+  ) {
+    setProcessingId(assistantId);
+    try {
+      const context = snapshot.capture?.payload.context ?? fallbackContext;
+      const response = firstTurn && snapshot.capture
+        ? await analyzeCapture(snapshot.capture.capture_id, {
+            ...snapshot.capture.payload,
+            conversation_id: snapshot.conversation.id,
+            query: text || null,
+          })
+        : await continueConversation({
+            request_id: newId(),
+            conversation_id: snapshot.conversation.id,
+            query: text,
+            context,
+          });
+      setState((current) => resolveAssistant(current, assistantId, response));
       setBackendStatus("connected");
-      setAiProvider(result.route.provider);
+      setAiProvider(response.route.provider ?? aiProvider);
+      void refreshHistory();
     } catch (reason) {
       const requestError = reason instanceof Error ? reason : new Error(String(reason));
-      setError(requestError);
+      setState((current) => failAssistant(current, assistantId, requestError.message));
       setBackendStatus(requestError instanceof BackendUnavailableError ? "disconnected" : "connected");
       if (requestError instanceof ProviderUnavailableError) setAiProvider(null);
     } finally {
-      setLoading(false);
+      setProcessingId(null);
     }
+  }
+
+  async function submit(event?: FormEvent, action?: string) {
+    event?.preventDefault();
+    const text = (action ?? query).trim();
+    if (!canSend(state, text, processingId !== null)) return;
+    const firstTurn = state.conversation.messages.length === 0 && state.draftAttachment !== null;
+    if (!firstTurn && !text) return;
+    const assistantId = newId();
+    const snapshot = state;
+    setState(appendPendingTurn(state, text, newId(), assistantId));
+    setQuery("");
+    stickToBottom.current = true;
+    await executeTurn(snapshot, text, assistantId, firstTurn);
+  }
+
+  async function retry(messageId: string) {
+    const index = state.conversation.messages.findIndex((message) => message.id === messageId);
+    const user = index > 0 ? state.conversation.messages[index - 1] : undefined;
+    if (!user || user.role !== "user" || processingId) return;
+    const firstTurn = Boolean(user.attachments?.length);
+    setState(retryAssistant(state, messageId));
+    await executeTurn(state, user.content, messageId, firstTurn);
+  }
+
+  function startNewChat() {
+    setState(emptyConversation(newId()));
+    setQuery("");
+    setProcessingId(null);
+    setHistoryOpen(false);
   }
 
   return (
     <main className="chat-shell">
       <header className="chat-header">
         <div className="app-mark"><Sparkles /></div>
-        <div><strong>Visual Search</strong><small>Desktop capture</small></div>
+        <div><strong>Visual Search</strong><small>Multimodal conversation</small></div>
         <div className="service-statuses">
           <span className={`backend-status ${backendStatus}`}>Backend: {backendStatus}</span>
           <span className={`ai-status ${aiProvider ? "ready" : "unavailable"}`}>
             AI: {aiProvider ? `${aiProvider} ready` : "not configured"}
           </span>
         </div>
+        <button className="secondary icon-button" title="History" onClick={() => void toggleHistory()}><History /></button>
+        <button className="secondary icon-button" title="New chat" onClick={startNewChat}><MessageSquarePlus /></button>
         <button className="secondary icon-button" title="New capture" onClick={() => desktopBridge.beginRectangleCapture()}><RotateCcw /></button>
       </header>
 
-      <section className="chat-body">
-        {!response && !loading && (
-          <section className="suggestions" aria-label="Suggested actions">
-            <span>Suggested actions</span>
-            <div>{APP_CONFIG.suggestedActions.map((action) => <button key={action} onClick={() => void submit(undefined, action)}>{action}</button>)}</div>
-          </section>
-        )}
+      {historyOpen && (
+        <aside className="history-drawer" aria-label="Conversation history">
+          <strong>Previous conversations</strong>
+          {history.length === 0 && <small>No saved conversations yet.</small>}
+          {history.map((item) => (
+            <button key={item.id} onClick={() => void openConversation(item.id)}>
+              <span>{item.title}</span><small>{item.primary_modality}</small>
+            </button>
+          ))}
+        </aside>
+      )}
 
-        {loading && <div className="analysis-state"><LoaderCircle className="spin" /><div><strong>Understanding screenshot</strong><small>The backend is selecting the best expert automatically…</small></div></div>}
-
-        {error && (
-          <div className={`error-banner${error instanceof ProviderUnavailableError ? " provider-unavailable" : ""}`} role="alert">
-            <strong>{error instanceof ProviderUnavailableError ? "AI provider unavailable" : "Couldn’t analyze this capture"}</strong>
-            <p>{error.message}</p>
-            {error instanceof ProviderUnavailableError && (
-              <details className="provider-trace">
-                <summary>Show Process</summary>
-                <ol>
-                  <li>Capture received <span>✓</span></li>
-                  <li>Perception and OCR completed <span>✓</span></li>
-                  <li>MIR, intent, and routing completed <span>✓</span></li>
-                  <li>Provider unavailable</li>
-                </ol>
-              </details>
-            )}
-            <button onClick={() => void submit()}>Retry</button>
-          </div>
-        )}
-
-        {response && (
-          <section className="answer-card">
-            <div className="route-summary"><span>Automatically routed</span><strong>{response.route.expert}</strong><small>{response.mir_summary.primary_modality} · {Math.round(response.mir_summary.confidence * 100)}% confidence</small></div>
-            <span className="answer-label">Answer</span>
-            {response.answer && <p>{response.answer}</p>}
-            {response.suggested_actions.length > 0 && (
-              <div className="suggestions" aria-label="Contextual suggested actions">
-                <span>Suggested actions</span>
-                <div>{response.suggested_actions.map((action) => <button key={action} onClick={() => void submit(undefined, action)}>{action}</button>)}</div>
+      <section
+        className="chat-body conversation-timeline"
+        ref={timeline}
+        onScroll={(event) => {
+          const element = event.currentTarget;
+          stickToBottom.current = element.scrollHeight - element.scrollTop - element.clientHeight < 80;
+        }}
+      >
+        {state.conversation.messages.length === 0 && (
+          <section className="empty-chat">
+            <Sparkles />
+            <strong>{state.draftAttachment ? "Screenshot ready" : "Start a new capture"}</strong>
+            <p>{state.draftAttachment ? "Ask anything about the selected content, or send the image by itself." : "Use the floating capture button to begin a conversation."}</p>
+            {state.draftAttachment && (
+              <div className="suggestions" aria-label="Suggested actions">
+                <div>{APP_CONFIG.suggestedActions.map((action) => <button key={action} onClick={() => void submit(undefined, action)}>{action}</button>)}</div>
               </div>
             )}
-            <TracePanel response={response} />
           </section>
         )}
+
+        {state.conversation.messages.map((message) => (
+          <article className={`chat-message ${message.role} ${message.status ?? "complete"}`} key={message.id}>
+            <span className="message-role">{message.role}</span>
+            <div className="message-bubble">
+              {message.attachments?.map((attachment) => (
+                <button className="sent-image" key={attachment.id} onClick={() => setPreview(attachment.previewUrl)}>
+                  <img src={attachment.previewUrl} alt="Captured screenshot" />
+                </button>
+              ))}
+              {message.status === "sending" ? (
+                <div className="thinking"><LoaderCircle className="spin" /> Thinking…</div>
+              ) : (
+                message.content && <p>{message.content}</p>
+              )}
+              {message.status === "error" && (
+                <div className="message-error"><small>{message.error}</small><button onClick={() => void retry(message.id)}>Retry</button></div>
+              )}
+              {message.response && <TracePanel response={message.response} />}
+            </div>
+          </article>
+        ))}
       </section>
 
       <form className="composer" onSubmit={(event) => void submit(event)}>
-        <div className="composer-attachment" aria-live="polite">
-          {capture ? (
-            <>
-              <img src={capture.image_data_url} alt="Screenshot attached to this request" />
-              <div><strong>Screenshot attached</strong><small>{desktopBridge.selectionLabel(capture.payload.context.selection_mode)} · Expert selected automatically after Send</small></div>
-              <ImageIcon aria-hidden="true" />
-            </>
-          ) : (
-            <div className="attachment-loading"><LoaderCircle className="spin" /><span>Attaching screenshot…</span></div>
-          )}
-        </div>
+        {state.draftAttachment && (
+          <div className="composer-attachment" aria-live="polite">
+            <img src={state.draftAttachment.previewUrl} alt="Screenshot attached to draft" />
+            <div><strong>Screenshot attached</strong><small>Moves into your message when sent</small></div>
+            <button type="button" className="remove-attachment" aria-label="Remove screenshot" onClick={() => setState(removeDraftAttachment(state))}><X /></button>
+          </div>
+        )}
         <textarea
           ref={input}
           value={query}
@@ -177,12 +284,22 @@ export function ChatWindow({ captureId }: { captureId: string | null }) {
               void submit();
             }
           }}
-          placeholder="Ask about this capture (optional)"
+          placeholder={state.draftAttachment ? "Ask anything…" : "Message…"}
           rows={2}
-          aria-label="Question about the capture"
+          aria-label="Chat message"
         />
-        <button className="send-button" type="submit" disabled={!capture || loading} aria-label="Send request"><ArrowUp /></button>
+        <button className="send-button" type="submit" disabled={!canSend(state, query, processingId !== null)} aria-label="Send message"><ArrowUp /></button>
       </form>
+
+      {preview && (
+        <button className="image-preview" onClick={() => setPreview(null)} aria-label="Close image preview">
+          <img src={preview} alt="Captured screenshot preview" />
+        </button>
+      )}
     </main>
   );
+}
+
+function resultCaptureId(capture: { capture_id: string }) {
+  return capture.capture_id;
 }

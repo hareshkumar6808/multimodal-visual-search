@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     local_daily_budget: int = Field(default=0, ge=0)
 
     provider_timeout_seconds: float = Field(default=45.0, gt=0)
+    conversation_db_path: str = ".tools/stage1/conversations.db"
 
 
 @lru_cache

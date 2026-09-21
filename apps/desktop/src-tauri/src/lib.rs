@@ -69,7 +69,16 @@ struct CaptureContext {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct AnalyzePayload {
     request_id: String,
+    conversation_id: Option<String>,
     query: Option<String>,
+    context: CaptureContext,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct ChatPayload {
+    request_id: String,
+    conversation_id: String,
+    query: String,
     context: CaptureContext,
 }
 
@@ -124,6 +133,8 @@ struct AnalyzeMetrics {
 #[derive(Debug, Deserialize, Serialize)]
 struct AnalyzeResponse {
     request_id: String,
+    conversation_id: Option<String>,
+    message_id: Option<String>,
     answer: Option<String>,
     suggested_actions: Vec<String>,
     mir_summary: MirSummary,
@@ -389,6 +400,7 @@ fn complete_capture(
         image_data_url: png_data_url(&png),
         payload: AnalyzePayload {
             request_id: Uuid::new_v4().to_string(),
+            conversation_id: None,
             query: None,
             context: CaptureContext {
                 active_app: stored.active_app.clone(),
@@ -490,6 +502,7 @@ fn get_capture(state: State<DesktopState>, capture_id: String) -> Result<Capture
         image_data_url: png_data_url(&stored.png),
         payload: AnalyzePayload {
             request_id: Uuid::new_v4().to_string(),
+            conversation_id: None,
             query: None,
             context: CaptureContext {
                 active_app: stored.active_app.clone(),
@@ -545,6 +558,44 @@ fn response_detail(body: &str) -> String {
                 .map(str::to_owned)
         })
         .unwrap_or_else(|| body.trim().to_string())
+}
+
+async fn decode_backend_response(
+    response: reqwest::Response,
+    request_label: &str,
+) -> Result<AnalyzeResponse, CommandError> {
+    let status = response.status();
+    let body = response.text().await.map_err(|error| {
+        CommandError::new("invalid_response", error.to_string(), Some(status.as_u16()))
+    })?;
+    eprintln!(
+        "ANALYZE_RESPONSE_RECEIVED request={request_label} status={}",
+        status.as_u16()
+    );
+    if !status.is_success() {
+        let detail = response_detail(&body);
+        if status.as_u16() == 503 && detail.contains("No configured, available provider") {
+            eprintln!("PROVIDER_UNAVAILABLE request={request_label}");
+            return Err(CommandError::new(
+                "provider_unavailable",
+                "AI provider is not configured. OCR and routing completed successfully, but an AI provider is required to generate the final answer.",
+                Some(503),
+            ));
+        }
+        let kind = if status.is_client_error() {
+            "request"
+        } else {
+            "server"
+        };
+        return Err(CommandError::new(kind, detail, Some(status.as_u16())));
+    }
+    serde_json::from_str::<AnalyzeResponse>(&body).map_err(|error| {
+        CommandError::new(
+            "invalid_response",
+            format!("Backend returned an invalid response: {error}"),
+            Some(status.as_u16()),
+        )
+    })
 }
 
 #[tauri::command]
@@ -674,35 +725,65 @@ async fn analyze_capture(
             CommandError::new(kind, error.to_string(), None)
         })?;
     eprintln!("ANALYZE_REQUEST_SENT capture_id={capture_id}");
+    decode_backend_response(response, &capture_id).await
+}
+
+#[tauri::command]
+async fn continue_conversation(payload: ChatPayload) -> Result<AnalyzeResponse, CommandError> {
+    let request_id = payload.request_id.clone();
+    let response = reqwest::Client::builder()
+        .timeout(Duration::from_secs(45))
+        .build()
+        .map_err(|error| CommandError::new("network", error.to_string(), None))?
+        .post(format!("{BACKEND_BASE_URL}/api/chat"))
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|error| {
+            let kind = if error.is_timeout() {
+                "timeout"
+            } else {
+                "network"
+            };
+            CommandError::new(kind, error.to_string(), None)
+        })?;
+    eprintln!("CHAT_REQUEST_SENT request_id={request_id}");
+    decode_backend_response(response, &request_id).await
+}
+
+async fn get_backend_json(path: &str) -> Result<serde_json::Value, CommandError> {
+    let response = reqwest::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .build()
+        .map_err(|error| CommandError::new("network", error.to_string(), None))?
+        .get(format!("{BACKEND_BASE_URL}{path}"))
+        .send()
+        .await
+        .map_err(|error| CommandError::new("network", error.to_string(), None))?;
     let status = response.status();
     let body = response.text().await.map_err(|error| {
         CommandError::new("invalid_response", error.to_string(), Some(status.as_u16()))
     })?;
-    eprintln!("ANALYZE_RESPONSE_RECEIVED status={}", status.as_u16());
     if !status.is_success() {
-        let detail = response_detail(&body);
-        if status.as_u16() == 503 && detail.contains("No configured, available provider") {
-            eprintln!("PROVIDER_UNAVAILABLE capture_id={capture_id}");
-            return Err(CommandError::new(
-                "provider_unavailable",
-                "AI provider is not configured. OCR and routing completed successfully, but an AI provider is required to generate the final answer.",
-                Some(503),
-            ));
-        }
-        let kind = if status.is_client_error() {
-            "request"
-        } else {
-            "server"
-        };
-        return Err(CommandError::new(kind, detail, Some(status.as_u16())));
-    }
-    serde_json::from_str::<AnalyzeResponse>(&body).map_err(|error| {
-        CommandError::new(
-            "invalid_response",
-            format!("Backend returned an invalid response: {error}"),
+        return Err(CommandError::new(
+            "request",
+            response_detail(&body),
             Some(status.as_u16()),
-        )
+        ));
+    }
+    serde_json::from_str(&body).map_err(|error| {
+        CommandError::new("invalid_response", error.to_string(), Some(status.as_u16()))
     })
+}
+
+#[tauri::command]
+async fn list_conversations() -> Result<serde_json::Value, CommandError> {
+    get_backend_json("/api/conversations").await
+}
+
+#[tauri::command]
+async fn get_conversation(conversation_id: String) -> Result<serde_json::Value, CommandError> {
+    get_backend_json(&format!("/api/conversations/{conversation_id}")).await
 }
 
 #[tauri::command]
@@ -830,6 +911,9 @@ pub fn run() {
             cancel_capture,
             check_backend_health,
             analyze_capture,
+            continue_conversation,
+            list_conversations,
+            get_conversation,
             open_utility_window,
             set_widget_expanded,
             start_widget_drag,

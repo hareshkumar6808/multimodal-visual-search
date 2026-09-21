@@ -74,7 +74,7 @@ Stop every process started by the launcher with:
 
 The standard launcher configures the repository-local Qwen2.5 3B Q4 model through llama.cpp. It is a small local model, so it is private and free to run but less capable than larger hosted models. Answers receive the relevant recent conversation plus the original OCR/MIR selection context and are requested to be complete.
 
-NVIDIA and Gemini adapters remain available through `.env`, but the launcher does not require or create cloud credentials. The provider registry selects only configured, available, capability-compatible providers and falls back when an eligible provider fails. A controlled error is returned if none can answer.
+NVIDIA and Gemini adapters are available through `.env`, but the launcher does not require or create cloud credentials. Routing uses local inference first for lightweight identification, extraction, and short summaries. It prefers configured cloud providers for explanations, debugging, calculations, comparisons, long selections, longer conversations, code, tables, charts, and visual requests. Visual routes prefer Gemini; text-based code reasoning prefers NVIDIA, with Gemini and the local model as fallbacks. Health, capability, daily budget, recent failures, and latency are considered before each call. A controlled error is returned if no compatible provider can answer.
 
 ## Troubleshooting
 

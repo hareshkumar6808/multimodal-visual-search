@@ -42,7 +42,13 @@ async def test_nvidia_failures_activate_compatible_fallback(failure: str) -> Non
     )
     try:
         name, result, failures, _ = await registry.generate_with_fallback(
-            EXPERTS["text-expert"], "prompt", False, b"pixels", "image/png", "failure-test"
+            EXPERTS["text-expert"],
+            "prompt",
+            False,
+            b"pixels",
+            "image/png",
+            "failure-test",
+            prefer_cloud=True,
         )
     finally:
         await registry.aclose()
@@ -85,13 +91,19 @@ async def test_gemini_uses_generate_content_and_distinguishes_multimodal_input()
 
 
 async def test_cloud_upload_metric_includes_failed_cloud_attempt() -> None:
-    first = MockProvider(name="nvidia", vision=True, fail=True, is_cloud=True)
-    second = MockProvider(name="gemini", vision=True, response="answer", is_cloud=True)
+    first = MockProvider(name="gemini", vision=True, fail=True, is_cloud=True)
+    second = MockProvider(name="nvidia", vision=True, response="answer", is_cloud=True)
     registry = ProviderRegistry([first, second])
     _, _, failures, uploaded = await registry.generate_with_fallback(
-        EXPERTS["vision-expert"], "prompt", True, b"pixels", "image/png", "image-test"
+        EXPERTS["vision-expert"],
+        "prompt",
+        True,
+        b"pixels",
+        "image/png",
+        "image-test",
+        prefer_cloud=True,
     )
-    assert failures == ["nvidia"]
+    assert failures == ["gemini"]
     assert uploaded is True
 
 
@@ -116,3 +128,37 @@ def test_local_provider_availability_requires_a_listening_service() -> None:
         assert provider.available() is False
     finally:
         listener.close()
+
+
+def test_balanced_routing_prefers_local_for_lightweight_text() -> None:
+    registry = ProviderRegistry(
+        [MockProvider(name="nvidia"), MockProvider(name="gemini"), MockProvider(name="local")]
+    )
+
+    ranked = registry.ranked(EXPERTS["text-expert"], False, prefer_cloud=False)
+
+    assert [provider.name for provider in ranked] == ["local", "gemini", "nvidia"]
+
+
+def test_balanced_routing_prefers_cloud_quality_for_code() -> None:
+    registry = ProviderRegistry(
+        [MockProvider(name="local"), MockProvider(name="gemini"), MockProvider(name="nvidia")]
+    )
+
+    ranked = registry.ranked(EXPERTS["code-expert"], False, prefer_cloud=True)
+
+    assert [provider.name for provider in ranked] == ["nvidia", "gemini", "local"]
+
+
+def test_balanced_routing_prefers_vision_provider_for_pixels() -> None:
+    registry = ProviderRegistry(
+        [
+            MockProvider(name="local", vision=True, is_cloud=False),
+            MockProvider(name="nvidia", vision=True, is_cloud=True),
+            MockProvider(name="gemini", vision=True, is_cloud=True),
+        ]
+    )
+
+    ranked = registry.ranked(EXPERTS["vision-expert"], True, prefer_cloud=True)
+
+    assert [provider.name for provider in ranked] == ["gemini", "nvidia", "local"]

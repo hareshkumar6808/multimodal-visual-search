@@ -7,6 +7,7 @@ import {
   failAssistant,
   removeDraftAttachment,
   resolveAssistant,
+  updateAssistantProgress,
 } from "./conversationState";
 import type { AnalyzeResponse, CaptureResult } from "./types/api";
 
@@ -66,6 +67,22 @@ describe("conversation state", () => {
     state = appendPendingTurn(state, "Why?", "user-1", "assistant-1", 200);
     state = resolveAssistant(state, "assistant-1", response(1));
     expect(state.conversation.messages.map((message) => message.content)).toEqual(["Why?", "answer 1"]);
+  });
+
+  it("shows live backend stages only while the assistant is pending", () => {
+    let state = appendPendingTurn(
+      conversationFromCapture("conversation-a", capture, "attachment-a"),
+      "Why?",
+      "user-1",
+      "assistant-1",
+    );
+    state = updateAssistantProgress(state, "assistant-1", [
+      { stage: "routing", status: "complete", message: "Expert: code-expert" },
+      { stage: "provider", status: "running", message: "Calling NVIDIA" },
+    ]);
+    expect(state.conversation.messages[1].progress?.[1].message).toBe("Calling NVIDIA");
+    state = resolveAssistant(state, "assistant-1", response(1));
+    expect(state.conversation.messages[1].progress).toBeUndefined();
   });
 
   it("appends a second complete turn without replacing the first turn", () => {

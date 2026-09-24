@@ -8,6 +8,7 @@ import {
   analyzeCapture,
   BackendRequestError,
   BackendUnavailableError,
+  getAnalysisProgress,
   normalizeBackendError,
   ProviderUnavailableError,
 } from "./backendClient";
@@ -46,6 +47,17 @@ describe("analyzeCapture", () => {
     const error = normalizeBackendError({ kind: "network", message: "connection refused" });
     expect(error).toBeInstanceOf(BackendUnavailableError);
     expect(error.message).toBe("Backend unavailable. Start the Stage 1 orchestration service and retry.");
+  });
+
+  it("reads live progress through the native bridge", async () => {
+    const progress = {
+      request_id: "request-123",
+      complete: false,
+      events: [{ stage: "provider", status: "running", message: "Calling NVIDIA" }],
+    };
+    invoke.mockResolvedValue(progress);
+    await expect(getAnalysisProgress("request-123")).resolves.toEqual(progress);
+    expect(invoke).toHaveBeenCalledWith("get_analysis_progress", { requestId: "request-123" });
   });
 
   it("does not classify provider HTTP 503 as a disconnected backend", () => {

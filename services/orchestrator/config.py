@@ -16,7 +16,10 @@ class Settings(BaseSettings):
     nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
     nvidia_model: str | None = None
     nvidia_supports_vision: bool = False
+    nvidia_reasoning_model: str | None = None
+    nvidia_vision_model: str | None = None
     nvidia_daily_budget: int = Field(default=0, ge=0)
+    nvidia_max_tokens: int = Field(default=384, ge=32, le=4096)
 
     gemini_api_key: str | None = None
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
@@ -28,6 +31,8 @@ class Settings(BaseSettings):
     local_api_key: str | None = None
     local_supports_vision: bool = False
     local_daily_budget: int = Field(default=0, ge=0)
+    local_provider_timeout_seconds: float = Field(default=30.0, gt=0)
+    local_max_tokens: int = Field(default=512, ge=32, le=4096)
 
     provider_timeout_seconds: float = Field(default=45.0, gt=0)
     conversation_db_path: str = ".tools/stage1/conversations.db"

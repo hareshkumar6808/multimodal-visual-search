@@ -12,6 +12,7 @@ from contracts.models import (
     ChatPayload,
     ConversationDetail,
     ConversationSummary,
+    ProgressSnapshot,
     ProviderStatus,
 )
 from services.orchestrator.config import Settings, get_settings
@@ -106,11 +107,17 @@ def create_app(orchestrator: Orchestrator | None = None) -> FastAPI:
         try:
             return await service.analyze(image_bytes, detected_mime_type, payload)
         except PerceptionUnavailableError as exc:
+            service.progress.fail(payload.request_id, str(exc))
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
         except NoCompatibleProviderError as exc:
+            service.progress.fail(payload.request_id, str(exc))
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
         except ResponseValidationError as exc:
+            service.progress.fail(payload.request_id, str(exc))
             raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+        except Exception:
+            service.progress.fail(payload.request_id, "Analysis stopped unexpectedly")
+            raise
 
     @app.post("/api/chat", response_model=AnalyzeResponse)
     async def chat(
@@ -120,11 +127,24 @@ def create_app(orchestrator: Orchestrator | None = None) -> FastAPI:
         try:
             return await service.chat(payload)
         except ConversationNotFoundError as exc:
+            service.progress.fail(payload.request_id, str(exc))
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
         except NoCompatibleProviderError as exc:
+            service.progress.fail(payload.request_id, str(exc))
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
         except ResponseValidationError as exc:
+            service.progress.fail(payload.request_id, str(exc))
             raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+        except Exception:
+            service.progress.fail(payload.request_id, "Analysis stopped unexpectedly")
+            raise
+
+    @app.get("/api/progress/{request_id}", response_model=ProgressSnapshot)
+    async def progress(
+        request_id: str,
+        service: Annotated[Orchestrator, Depends(get_orchestrator)],
+    ) -> ProgressSnapshot:
+        return service.progress.snapshot(request_id)
 
     @app.get("/api/conversations", response_model=list[ConversationSummary])
     async def conversations(

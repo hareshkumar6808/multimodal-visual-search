@@ -709,7 +709,7 @@ async fn analyze_capture(
         .part("image", image_part)
         .text("payload_json", payload_json);
     let response = reqwest::Client::builder()
-        .timeout(Duration::from_secs(45))
+        .timeout(Duration::from_secs(180))
         .build()
         .map_err(|error| CommandError::new("network", error.to_string(), None))?
         .post(format!("{BACKEND_BASE_URL}/api/analyze"))
@@ -732,7 +732,7 @@ async fn analyze_capture(
 async fn continue_conversation(payload: ChatPayload) -> Result<AnalyzeResponse, CommandError> {
     let request_id = payload.request_id.clone();
     let response = reqwest::Client::builder()
-        .timeout(Duration::from_secs(45))
+        .timeout(Duration::from_secs(180))
         .build()
         .map_err(|error| CommandError::new("network", error.to_string(), None))?
         .post(format!("{BACKEND_BASE_URL}/api/chat"))
@@ -784,6 +784,11 @@ async fn list_conversations() -> Result<serde_json::Value, CommandError> {
 #[tauri::command]
 async fn get_conversation(conversation_id: String) -> Result<serde_json::Value, CommandError> {
     get_backend_json(&format!("/api/conversations/{conversation_id}")).await
+}
+
+#[tauri::command]
+async fn get_analysis_progress(request_id: String) -> Result<serde_json::Value, CommandError> {
+    get_backend_json(&format!("/api/progress/{request_id}")).await
 }
 
 #[tauri::command]
@@ -912,6 +917,7 @@ pub fn run() {
             check_backend_health,
             analyze_capture,
             continue_conversation,
+            get_analysis_progress,
             list_conversations,
             get_conversation,
             open_utility_window,

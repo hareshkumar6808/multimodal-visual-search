@@ -1,4 +1,4 @@
-import type { AnalyzeResponse, CaptureResult, ConversationDetail } from "./types/api";
+import type { AnalyzeResponse, CaptureResult, ConversationDetail, LiveProgressEvent } from "./types/api";
 
 export interface Attachment {
   id: string;
@@ -16,6 +16,7 @@ export interface ChatMessage {
   status?: "sending" | "complete" | "error";
   response?: AnalyzeResponse;
   error?: string;
+  progress?: LiveProgressEvent[];
 }
 
 export interface Conversation {
@@ -129,6 +130,7 @@ export function resolveAssistant(
               content,
               status: "complete" as const,
               response,
+              progress: undefined,
             }
           : message,
       ),
@@ -156,6 +158,23 @@ export function failAssistant(
   };
 }
 
+export function updateAssistantProgress(
+  state: ConversationState,
+  assistantId: string,
+  progress: LiveProgressEvent[],
+): ConversationState {
+  return {
+    ...state,
+    conversation: {
+      ...state.conversation,
+      messages: state.conversation.messages.map((message) =>
+        message.id === assistantId ? { ...message, progress } : message,
+      ),
+      updatedAt: Date.now(),
+    },
+  };
+}
+
 export function retryAssistant(state: ConversationState, assistantId: string): ConversationState {
   return {
     ...state,
@@ -163,7 +182,7 @@ export function retryAssistant(state: ConversationState, assistantId: string): C
       ...state.conversation,
       messages: state.conversation.messages.map((message) =>
         message.id === assistantId
-          ? { ...message, content: "", status: "sending" as const, error: undefined }
+          ? { ...message, content: "", status: "sending" as const, error: undefined, progress: undefined }
           : message,
       ),
     },

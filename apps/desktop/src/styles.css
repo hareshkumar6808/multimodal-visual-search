@@ -96,6 +96,15 @@ button { color: inherit; }
 .sent-image img { display: block; width: 100%; max-height: 150px; object-fit: contain; }
 .thinking { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; }
 .thinking svg { width: 15px; }
+.live-progress { min-width: 280px; display: flex; flex-direction: column; gap: 7px; }
+.live-progress > strong { margin-bottom: 2px; color: #dfe6f2; font-size: 11px; font-weight: 650; }
+.live-progress-row { display: grid; grid-template-columns: 17px 1fr; align-items: center; gap: 7px; color: var(--muted); font-size: 10px; line-height: 1.35; }
+.live-progress-row svg { width: 13px; height: 13px; }
+.live-progress-row.running { color: #c9d9f4; }
+.live-progress-row.running svg { color: #77a9ff; }
+.live-progress-row.complete { color: #b9c1cc; }
+.live-progress-row .live-progress-ok { color: #6bd391; }
+.live-progress-row .live-progress-error { color: var(--danger); }
 .message-error { display: flex; flex-direction: column; gap: 8px; }
 .message-error small { color: #f2b1b1; font-size: 10px; line-height: 1.4; }
 .message-error button { align-self: flex-start; padding: 5px 8px; border: 1px solid #795055; border-radius: 5px; background: #392529; cursor: pointer; font-size: 10px; }

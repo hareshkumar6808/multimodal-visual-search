@@ -58,7 +58,8 @@ class RealPerceptionAdapter(PerceptionAdapter):
             else:
                 result = await to_thread.run_sync(lambda: function(*arguments, **keyword_arguments))
         except Exception as exc:
-            raise PerceptionUnavailableError("Perception analysis failed") from exc
+            detail = str(exc).strip() or type(exc).__name__
+            raise PerceptionUnavailableError(f"Perception analysis failed: {detail}") from exc
         if inspect.isawaitable(result):
             result = await result
         if not isinstance(result, dict):

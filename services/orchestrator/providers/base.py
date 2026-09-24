@@ -40,9 +40,18 @@ class ProviderStats:
 class Provider(ABC):
     name: str
 
-    def __init__(self, *, daily_budget: int = 0, is_cloud: bool = True) -> None:
+    def __init__(
+        self,
+        *,
+        daily_budget: int = 0,
+        is_cloud: bool = True,
+        family: str | None = None,
+        preferred_experts: frozenset[str] | None = None,
+    ) -> None:
         self.daily_budget = daily_budget
         self.is_cloud = is_cloud
+        self.family = family
+        self.preferred_experts = preferred_experts or frozenset()
         self.stats = ProviderStats()
 
     @property
@@ -79,7 +88,11 @@ class Provider(ABC):
             self.stats.failures += 1
             if isinstance(exc, ProviderError):
                 raise
-            raise ProviderError(f"Provider {self.name} request failed: {exc}") from exc
+            detail = str(exc).strip()
+            suffix = f": {detail}" if detail else ""
+            raise ProviderError(
+                f"Provider {self.name} request failed ({type(exc).__name__}){suffix}"
+            ) from exc
         latency_ms = round((perf_counter() - started) * 1000)
         self.stats.total_latency_ms += latency_ms
         return ProviderResult(text, latency_ms, image_bytes is not None and self.is_cloud)

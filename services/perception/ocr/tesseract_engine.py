@@ -3,6 +3,8 @@ from __future__ import annotations
 import io
 import os
 import shutil
+import threading
+from pathlib import Path
 from typing import Any
 
 import pytesseract  # type: ignore[import-untyped]
@@ -16,6 +18,9 @@ _DEFAULT_WINDOWS_PATHS = [
     r"C:\Program Files\Tesseract-OCR\tesseract.exe",
     r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
 ]
+_REPOSITORY_LOCAL_PATH = (
+    Path(__file__).resolve().parents[3] / ".tools" / "Tesseract-OCR" / "tesseract.exe"
+)
 
 
 class TesseractOCREngine(OCREngine):
@@ -23,8 +28,24 @@ class TesseractOCREngine(OCREngine):
 
     def __init__(self, executable_path: str | None = None) -> None:
         self.executable_path = self._resolve_executable(executable_path)
+        self._lock = threading.Lock()
+        self.languages = self._resolve_languages()
         if self.executable_path:
             pytesseract.pytesseract.tesseract_cmd = self.executable_path
+
+    def _resolve_languages(self) -> str:
+        configured = os.getenv("TESSERACT_LANGUAGES")
+        if configured:
+            return configured
+        if not self.executable_path:
+            return "eng"
+        tessdata = Path(self.executable_path).parent / "tessdata"
+        available = [
+            language
+            for language in ("eng", "jpn")
+            if (tessdata / f"{language}.traineddata").is_file()
+        ]
+        return "+".join(available) or "eng"
 
     @staticmethod
     def _resolve_executable(custom_path: str | None) -> str | None:
@@ -45,6 +66,9 @@ class TesseractOCREngine(OCREngine):
             if os.path.exists(win_path):
                 return win_path
 
+        if _REPOSITORY_LOCAL_PATH.is_file():
+            return str(_REPOSITORY_LOCAL_PATH)
+
         return None
 
     def is_available(self) -> bool:
@@ -60,19 +84,24 @@ class TesseractOCREngine(OCREngine):
 
     def extract(self, image_bytes: bytes) -> OCRResult:
         """Execute Tesseract OCR extraction and produce normalized regions and confidences."""
-        if not self.is_available():
+        if not self.executable_path or not os.path.exists(self.executable_path):
             raise OCRError(
                 "Tesseract OCR executable is not available or failed to execute at: "
                 f"{self.executable_path}"
             )
 
         try:
-            with Image.open(io.BytesIO(image_bytes)) as img:
-                # Use image_to_data to obtain structured token positions and confidences
-                data: dict[str, list[Any]] = pytesseract.image_to_data(
-                    img,
-                    output_type=pytesseract.Output.DICT,
-                )
+            # pytesseract changes process-global command state and creates temporary files.
+            # Serialize calls so rapid captures cannot interfere with one another.
+            with self._lock:
+                pytesseract.pytesseract.tesseract_cmd = self.executable_path
+                with Image.open(io.BytesIO(image_bytes)) as img:
+                    data: dict[str, list[Any]] = pytesseract.image_to_data(
+                        img,
+                        lang=self.languages,
+                        output_type=pytesseract.Output.DICT,
+                        timeout=30,
+                    )
 
             words: list[str] = []
             regions: list[dict[str, Any]] = []

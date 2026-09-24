@@ -19,17 +19,29 @@ class OpenAICompatibleProvider(Provider):
         supports_vision: bool,
         daily_budget: int,
         timeout: float,
+        max_tokens: int = 1024,
+        temperature: float = 0.0,
+        family: str | None = None,
+        preferred_experts: frozenset[str] | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
-        super().__init__(daily_budget=daily_budget, is_cloud=name != "local")
+        super().__init__(
+            daily_budget=daily_budget,
+            is_cloud=name != "local",
+            family=family,
+            preferred_experts=preferred_experts,
+        )
         self.name = name
         self.base_url = base_url.rstrip("/") if base_url else None
         self.model = model
         self.api_key = api_key
         self.supports_vision = supports_vision
         self.timeout = timeout
+        self.max_tokens = max_tokens
+        self.temperature = temperature
         self.transport_provided = transport is not None
-        self.client = httpx.AsyncClient(timeout=timeout, transport=transport)
+        request_timeout = httpx.Timeout(timeout, connect=min(timeout, 3.0))
+        self.client = httpx.AsyncClient(timeout=request_timeout, transport=transport)
 
     @property
     def configured(self) -> bool:
@@ -72,8 +84,8 @@ class OpenAICompatibleProvider(Provider):
         body = {
             "model": self.model,
             "messages": [{"role": "user", "content": user_content}],
-            "temperature": 0.0,
-            "max_tokens": 1024,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
         }
         response = await self.client.post(
             f"{self.base_url}/chat/completions", headers=headers, json=body

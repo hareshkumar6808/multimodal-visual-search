@@ -4,18 +4,21 @@ object extraction, privacy scanning, visual dependency, and canonical MIR v0.1.
 
 from __future__ import annotations
 
+import logging
 import time
 import uuid
 from typing import Any
 
 from services.perception.extraction import extract_objects
-from services.perception.models import MIR
-from services.perception.ocr.base import OCREngine
+from services.perception.models import MIR, OCRResult
+from services.perception.ocr.base import OCREngine, OCRError
 from services.perception.ocr.factory import get_default_ocr_engine
 from services.perception.preflight import validate_and_extract_metadata
 from services.perception.privacy import scan_privacy
 from services.perception.profiling import profile_multimodal
 from services.perception.visual_dependency import evaluate_visual_required
+
+logger = logging.getLogger(__name__)
 
 
 class PerceptionPipeline:
@@ -47,7 +50,15 @@ class PerceptionPipeline:
 
         # 2. Local OCR Extraction
         t1 = time.perf_counter()
-        ocr_result = self.ocr_engine.extract(image_bytes)
+        ocr_degraded = 0
+        try:
+            ocr_result = self.ocr_engine.extract(image_bytes)
+        except OCRError as exc:
+            # A valid screenshot can still be understood by a vision provider. Keep the
+            # request alive and let modality routing select the vision path.
+            logger.warning("ocr_failed_falling_back_to_vision error=%s", exc)
+            ocr_result = OCRResult(text="", confidence=None, regions=[])
+            ocr_degraded = 1
         ocr_ms = int((time.perf_counter() - t1) * 1000)
 
         # 3. Multimodal Profiling (Deterministic Heuristic)
@@ -86,6 +97,7 @@ class PerceptionPipeline:
         self.last_telemetry = {
             "preflight_ms": preflight_ms,
             "ocr_ms": ocr_ms,
+            "ocr_degraded": ocr_degraded,
             "profiling_ms": profiling_ms,
             "extraction_ms": extraction_ms,
             "privacy_ms": privacy_ms,

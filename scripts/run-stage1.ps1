@@ -42,7 +42,28 @@ function Find-Tesseract {
     return (Resolve-Path -LiteralPath ($candidates | Select-Object -First 1)).Path
 }
 
+function Assert-PortAvailable {
+    param([int]$Port)
+    $listener = [System.Net.Sockets.TcpListener]::new(
+        [System.Net.IPAddress]::Loopback,
+        $Port
+    )
+    try {
+        $listener.Start()
+    } catch {
+        throw "Port $Port is already in use after stopping saved Stage 1 processes. Close the old app/backend process, then run this launcher again."
+    } finally {
+        $listener.Stop()
+    }
+}
+
 & (Join-Path $PSScriptRoot "stop-stage1.ps1") -Quiet
+foreach ($port in @(8765, 11434, 1420)) { Assert-PortAvailable $port }
+
+foreach ($logName in @("backend.out.log", "backend.err.log", "local-provider.out.log", "local-provider.err.log", "desktop.out.log", "desktop.err.log")) {
+    $logPath = Join-Path $logDir $logName
+    if (Test-Path -LiteralPath $logPath) { Clear-Content -LiteralPath $logPath }
+}
 
 $llamaServer = Join-Path $root ".tools\llama\llama-server.exe"
 $localModel = Join-Path $root ".tools\ollama\qwen2.5-3b-instruct-q4_k_m.gguf"

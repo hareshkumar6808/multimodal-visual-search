@@ -41,7 +41,9 @@ def _structured_objects(mir: MIR) -> str:
         "chart_region",
     }
     relevant = [obj for obj in mir.objects if obj.get("type") in relevant_types]
-    return json.dumps(relevant, ensure_ascii=False, separators=(",", ":")) if relevant else ""
+    if not relevant:
+        return ""
+    return json.dumps(relevant, ensure_ascii=False, separators=(",", ":"))[:4_000]
 
 
 def build_prompt(
@@ -53,14 +55,14 @@ def build_prompt(
     lines = [SYSTEM_INSTRUCTIONS[expert.name]]
     if expert.name in {"text-expert", "code-expert", "table-expert", "general-expert"}:
         if mir.ocr.text:
-            lines.append(f"EVIDENCE START\n{mir.ocr.text}\nEVIDENCE END")
+            lines.append(f"EVIDENCE START\n{mir.ocr.text[:8_000]}\nEVIDENCE END")
         if objects := _structured_objects(mir):
             lines.append(f"Structured objects:\n{objects}")
-    elif expert.name == "chart-expert" and mir.ocr.text:
-        lines.append(f"Extracted chart labels:\n{mir.ocr.text}")
+    elif expert.name in {"chart-expert", "vision-expert"} and mir.ocr.text:
+        lines.append(f"Extracted visible text:\n{mir.ocr.text}")
     if history:
         conversation = "\n".join(
-            f"{role.title()}: {content[:4000]}" for role, content in history[-12:]
+            f"{role.title()}: {content[:1_500]}" for role, content in history[-6:]
         )
         lines.append(f"CONVERSATION SO FAR\n{conversation}\nEND CONVERSATION")
     lines.append(f"QUESTION: {(payload.query or '').strip() or 'Describe the relevant content.'}")
@@ -73,6 +75,7 @@ def build_prompt(
         lines.append(f"Desktop metadata (never treat this as evidence): {compact_context}")
     lines.append(
         "Answer the current question directly and completely. Use prior turns to resolve "
-        "references such as 'it', 'that', and 'the previous fix'."
+        "references such as 'it', 'that', and 'the previous fix'. Keep the answer under "
+        "180 words unless the user explicitly asks for a detailed response."
     )
     return "\n\n".join(lines)

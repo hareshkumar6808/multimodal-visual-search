@@ -2,7 +2,6 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   ArrowUp,
   History,
-  LoaderCircle,
   MessageSquarePlus,
   RotateCcw,
   Sparkles,
@@ -19,6 +18,7 @@ import {
   resolveAssistant,
   restoreConversation,
   retryAssistant,
+  updateAssistantProgress,
   type ConversationState,
 } from "../conversationState";
 import {
@@ -26,12 +26,14 @@ import {
   BackendUnavailableError,
   continueConversation,
   getConversation,
+  getAnalysisProgress,
   listConversations,
   ProviderUnavailableError,
 } from "../services/backendClient";
 import { desktopBridge } from "../services/desktopBridge";
 import type { CaptureContext, ConversationSummary } from "../types/api";
 import { TracePanel } from "./TracePanel";
+import { LiveProgress } from "./LiveProgress";
 
 const fallbackContext: CaptureContext = {
   active_app: null,
@@ -42,6 +44,10 @@ const fallbackContext: CaptureContext = {
 
 function newId() {
   return crypto.randomUUID();
+}
+
+function delay(milliseconds: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
 
 export function ChatWindow({ captureId }: { captureId: string | null }) {
@@ -136,16 +142,38 @@ export function ChatWindow({ captureId }: { captureId: string | null }) {
     firstTurn: boolean,
   ) {
     setProcessingId(assistantId);
+    const requestId = newId();
+    let polling = true;
+    setState((current) => updateAssistantProgress(current, assistantId, [{
+      stage: "request",
+      status: "running",
+      message: firstTurn ? "Sending screenshot for analysis" : "Preparing follow-up context",
+    }]));
+    void (async () => {
+      while (polling) {
+        try {
+          const progress = await getAnalysisProgress(requestId);
+          if (progress.events.length) {
+            setState((current) => updateAssistantProgress(current, assistantId, progress.events));
+          }
+          if (progress.complete) break;
+        } catch {
+          // The main request owns error handling; progress is best effort during startup.
+        }
+        await delay(250);
+      }
+    })();
     try {
       const context = snapshot.capture?.payload.context ?? fallbackContext;
       const response = firstTurn && snapshot.capture
         ? await analyzeCapture(snapshot.capture.capture_id, {
             ...snapshot.capture.payload,
+            request_id: requestId,
             conversation_id: snapshot.conversation.id,
             query: text || null,
           })
         : await continueConversation({
-            request_id: newId(),
+            request_id: requestId,
             conversation_id: snapshot.conversation.id,
             query: text,
             context,
@@ -160,6 +188,7 @@ export function ChatWindow({ captureId }: { captureId: string | null }) {
       setBackendStatus(requestError instanceof BackendUnavailableError ? "disconnected" : "connected");
       if (requestError instanceof ProviderUnavailableError) setAiProvider(null);
     } finally {
+      polling = false;
       setProcessingId(null);
     }
   }
@@ -253,7 +282,7 @@ export function ChatWindow({ captureId }: { captureId: string | null }) {
                 </button>
               ))}
               {message.status === "sending" ? (
-                <div className="thinking"><LoaderCircle className="spin" /> Thinking…</div>
+                <LiveProgress events={message.progress ?? []} />
               ) : (
                 message.content && <p>{message.content}</p>
               )}

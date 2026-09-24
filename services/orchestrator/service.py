@@ -16,6 +16,7 @@ from services.orchestrator.conversations import ConversationStore
 from services.orchestrator.experts import SUGGESTIONS
 from services.orchestrator.intent import classify_intent
 from services.orchestrator.perception import PerceptionAdapter
+from services.orchestrator.progress import ProgressStore
 from services.orchestrator.prompting import build_prompt
 from services.orchestrator.providers.registry import ProviderRegistry
 from services.orchestrator.routing import RuleRouter
@@ -31,11 +32,13 @@ class Orchestrator:
         router: RuleRouter,
         providers: ProviderRegistry,
         conversations: ConversationStore | None = None,
+        progress: ProgressStore | None = None,
     ) -> None:
         self.perception = perception
         self.router = router
         self.providers = providers
         self.conversations = conversations or ConversationStore()
+        self.progress = progress or ProgressStore()
 
     async def analyze(
         self, image_bytes: bytes, mime_type: str, payload: AnalyzePayload
@@ -43,6 +46,13 @@ class Orchestrator:
         total_started = perf_counter()
         conversation_id = payload.conversation_id or str(uuid4())
         trace = [TraceEvent(stage="capture_received", status="complete")]
+        self.progress.start(payload.request_id)
+        self.progress.append(
+            payload.request_id, "capture_received", "complete", "Screenshot received"
+        )
+        self.progress.append(
+            payload.request_id, "perception", "running", "Reading the captured content"
+        )
 
         perception_started = perf_counter()
         mir = await self.perception.analyze_capture(
@@ -65,6 +75,13 @@ class Orchestrator:
                 duration_ms=perception_ms,
             )
         )
+        self.progress.append(
+            payload.request_id,
+            "mir",
+            "complete",
+            f"MIR v{mir.mir_version} ready: {mir.primary_modality} "
+            f"({round(mir.overall_confidence * 100)}% confidence)",
+        )
         self.conversations.save_capture(
             conversation_id, payload.request_id, mir, image_bytes, mime_type
         )
@@ -83,6 +100,13 @@ class Orchestrator:
 
     async def chat(self, payload: ChatPayload) -> AnalyzeResponse:
         total_started = perf_counter()
+        self.progress.start(payload.request_id)
+        self.progress.append(
+            payload.request_id,
+            "context_reused",
+            "complete",
+            "Reusing the screenshot's OCR and MIR",
+        )
         mir, image_bytes, mime_type, _capture_id = self.conversations.capture_context(
             payload.conversation_id
         )
@@ -131,6 +155,9 @@ class Orchestrator:
         intent = classify_intent(payload.query, mir.primary_modality)
         logger.info("INTENT_SELECTED request_id=%s intent=%s", payload.request_id, intent)
         trace.append(TraceEvent(stage="intent", status="complete", message=intent.title()))
+        self.progress.append(
+            payload.request_id, "intent", "complete", f"Intent: {intent}"
+        )
 
         routing_started = perf_counter()
         expert_route = self.router.route(mir, intent)
@@ -148,6 +175,12 @@ class Orchestrator:
                 confidence=expert_route.routing_certainty,
                 duration_ms=routing_ms,
             )
+        )
+        self.progress.append(
+            payload.request_id,
+            "routing",
+            "complete",
+            f"Expert: {expert_route.expert.name}",
         )
         message_id = str(uuid4())
 
@@ -191,6 +224,7 @@ class Orchestrator:
                 user_has_image=user_has_image,
                 assistant_id=message_id,
             )
+            self.progress.finish(payload.request_id)
             return response
 
         prompt = build_prompt(expert_route.expert, mir, payload, history)
@@ -215,6 +249,9 @@ class Orchestrator:
             mime_type,
             payload.request_id,
             prefer_cloud=prefer_cloud,
+            on_progress=lambda stage, status, message: self.progress.append(
+                payload.request_id, stage, status, message
+            ),
         )
         logger.info(
             "PROVIDER_SELECTED request_id=%s provider=%s", payload.request_id, provider_name
@@ -249,6 +286,9 @@ class Orchestrator:
         )
         if not valid:
             raise ResponseValidationError(validation_message)
+        self.progress.append(
+            payload.request_id, "validation", "complete", validation_message
+        )
 
         total_ms = round((perf_counter() - total_started) * 1000)
         logger.info(
@@ -291,4 +331,5 @@ class Orchestrator:
             user_has_image=user_has_image,
             assistant_id=message_id,
         )
+        self.progress.finish(payload.request_id)
         return response

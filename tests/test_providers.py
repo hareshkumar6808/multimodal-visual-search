@@ -107,6 +107,28 @@ async def test_cloud_upload_metric_includes_failed_cloud_attempt() -> None:
     assert uploaded is True
 
 
+async def test_fallback_skips_second_model_from_failed_provider_family() -> None:
+    first = MockProvider(name="nvidia-general-agent", fail=True)
+    duplicate_family = MockProvider(name="nvidia-reasoning-agent", response="not used")
+    local = MockProvider(name="local", response="fast fallback")
+    registry = ProviderRegistry([first, duplicate_family, local])
+
+    name, result, failures, _ = await registry.generate_with_fallback(
+        EXPERTS["text-expert"],
+        "prompt",
+        False,
+        b"pixels",
+        "image/png",
+        "family-fallback",
+        prefer_cloud=True,
+    )
+
+    assert name == "local"
+    assert result.text == "fast fallback"
+    assert failures == ["nvidia-general-agent"]
+    assert duplicate_family.stats.session_requests == 0
+
+
 def test_local_provider_availability_requires_a_listening_service() -> None:
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
@@ -162,3 +184,62 @@ def test_balanced_routing_prefers_vision_provider_for_pixels() -> None:
     ranked = registry.ranked(EXPERTS["vision-expert"], True, prefer_cloud=True)
 
     assert [provider.name for provider in ranked] == ["gemini", "nvidia", "local"]
+
+
+@pytest.mark.parametrize(
+    ("expert_name", "expected_provider"),
+    [
+        ("text-expert", "nvidia-general-agent"),
+        ("general-expert", "nvidia-general-agent"),
+        ("code-expert", "nvidia-reasoning-agent"),
+        ("table-expert", "nvidia-reasoning-agent"),
+        ("chart-expert", "nvidia-vision-agent"),
+        ("vision-expert", "nvidia-vision-agent"),
+    ],
+)
+def test_nvidia_model_agent_matches_selected_expert(
+    expert_name: str, expected_provider: str
+) -> None:
+    registry = ProviderRegistry(
+        [
+            MockProvider(
+                name="nvidia-general-agent",
+                preferred_experts=frozenset({"text-expert", "general-expert"}),
+            ),
+            MockProvider(
+                name="nvidia-reasoning-agent",
+                vision=False,
+                preferred_experts=frozenset({"code-expert", "table-expert"}),
+            ),
+            MockProvider(
+                name="nvidia-vision-agent",
+                preferred_experts=frozenset({"chart-expert", "vision-expert"}),
+            ),
+        ]
+    )
+
+    ranked = registry.ranked(
+        EXPERTS[expert_name],
+        expert_name == "vision-expert",
+        prefer_cloud=True,
+    )
+
+    assert ranked[0].name == expected_provider
+
+
+def test_failed_specialist_is_deprioritized_for_next_request() -> None:
+    specialist = MockProvider(
+        name="nvidia-general-agent",
+        preferred_experts=frozenset({"text-expert"}),
+    )
+    fallback = MockProvider(name="nvidia-reasoning-agent")
+    specialist.stats.session_requests = 1
+    specialist.stats.failures = 1
+    registry = ProviderRegistry([specialist, fallback])
+
+    ranked = registry.ranked(EXPERTS["text-expert"], False, prefer_cloud=True)
+
+    assert [provider.name for provider in ranked] == [
+        "nvidia-reasoning-agent",
+        "nvidia-general-agent",
+    ]

@@ -12,8 +12,15 @@ class MockProvider(Provider):
         response: str = "Mock answer",
         fail: bool = False,
         is_cloud: bool | None = None,
+        family: str | None = None,
+        preferred_experts: frozenset[str] | None = None,
     ) -> None:
-        super().__init__(is_cloud=name != "local" if is_cloud is None else is_cloud)
+        resolved_family = family or ("nvidia" if name.startswith("nvidia") else name)
+        super().__init__(
+            is_cloud=name != "local" if is_cloud is None else is_cloud,
+            family=resolved_family,
+            preferred_experts=preferred_experts,
+        )
         self.name = name
         self.vision = vision
         self.response = response

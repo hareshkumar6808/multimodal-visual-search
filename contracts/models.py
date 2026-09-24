@@ -125,6 +125,18 @@ class TraceEvent(BaseModel):
     duration_ms: int | None = Field(default=None, ge=0)
 
 
+class ProgressEvent(BaseModel):
+    stage: str
+    status: Literal["running", "complete", "failed"]
+    message: str
+
+
+class ProgressSnapshot(BaseModel):
+    request_id: str
+    complete: bool
+    events: list[ProgressEvent] = Field(default_factory=list)
+
+
 class MIRSummary(BaseModel):
     primary_modality: Modality
     confidence: float

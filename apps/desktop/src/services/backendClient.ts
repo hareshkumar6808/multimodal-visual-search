@@ -5,6 +5,7 @@ import type {
   ChatPayload,
   ConversationDetail,
   ConversationSummary,
+  ProgressSnapshot,
 } from "../types/api";
 
 interface NativeCommandError {
@@ -95,6 +96,14 @@ export async function listConversations(): Promise<ConversationSummary[]> {
 export async function getConversation(conversationId: string): Promise<ConversationDetail> {
   try {
     return await invoke<ConversationDetail>("get_conversation", { conversationId });
+  } catch (error) {
+    throw normalizeBackendError(error);
+  }
+}
+
+export async function getAnalysisProgress(requestId: string): Promise<ProgressSnapshot> {
+  try {
+    return await invoke<ProgressSnapshot>("get_analysis_progress", { requestId });
   } catch (error) {
     throw normalizeBackendError(error);
   }

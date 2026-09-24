@@ -50,6 +50,18 @@ export interface TraceEvent {
   duration_ms?: number;
 }
 
+export interface LiveProgressEvent {
+  stage: string;
+  status: "running" | "complete" | "failed";
+  message: string;
+}
+
+export interface ProgressSnapshot {
+  request_id: string;
+  complete: boolean;
+  events: LiveProgressEvent[];
+}
+
 export interface AnalyzeMetrics {
   latency_ms: number;
   perception_ms: number;

@@ -109,6 +109,21 @@ async def test_visual_required_selects_vision_capable_route_and_sends_image() ->
     assert response.metrics.cloud_image_uploaded is True
 
 
+async def test_visual_route_falls_back_to_text_only_local_without_image() -> None:
+    vision = MockProvider(name="nvidia-vision-agent", vision=True, fail=True)
+    local = MockProvider(name="local", vision=False, response="Offline answer from OCR.")
+    response = await service_for(make_mir("image", visual_required=True), [vision, local]).analyze(
+        b"private pixels", "image/png", AnalyzePayload(request_id="offline", query="Explain")
+    )
+
+    assert response.answer == "Offline answer from OCR."
+    assert response.route.provider == "local"
+    assert vision.received_images == [True, True]
+    assert local.received_images == [False]
+    assert "OFFLINE TEXT FALLBACK" in local.prompts[0]
+    assert response.metrics.cloud_image_uploaded is True
+
+
 async def test_low_perception_confidence_routes_to_general_expert() -> None:
     response = await service_for(make_mir("text", confidence=0.2)).analyze(
         b"image", "image/png", AnalyzePayload(request_id="r6", query="Explain")

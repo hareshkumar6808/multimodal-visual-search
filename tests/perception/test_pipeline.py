@@ -11,7 +11,7 @@ from services.perception import (
     analyze_capture,
 )
 from services.perception.models import OCRResult
-from services.perception.ocr.base import OCREngine
+from services.perception.ocr.base import OCREngine, OCRError
 from services.perception.ocr.tesseract_engine import TesseractOCREngine
 
 
@@ -35,6 +35,14 @@ class DeterministicMockOCR(OCREngine):
                 }
             ],
         )
+
+
+class FailingOCR(OCREngine):
+    def is_available(self) -> bool:
+        return True
+
+    def extract(self, image_bytes: bytes) -> OCRResult:
+        raise OCRError("temporary OCR failure")
 
 
 def make_png(
@@ -109,3 +117,14 @@ def test_analyze_capture_convenience_function() -> None:
     assert "visual_required" in mir_dict
     assert "privacy_flags" in mir_dict
     assert "overall_confidence" in mir_dict
+
+
+def test_ocr_failure_degrades_to_visual_analysis() -> None:
+    pipeline = PerceptionPipeline(ocr_engine=FailingOCR())
+
+    mir = pipeline.analyze(make_png(), request_id="ocr-fallback")
+
+    assert mir.ocr.text == ""
+    assert mir.primary_modality == "image"
+    assert mir.visual_required is True
+    assert pipeline.last_telemetry["ocr_degraded"] == 1

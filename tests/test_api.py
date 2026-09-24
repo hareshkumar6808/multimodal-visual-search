@@ -51,6 +51,20 @@ def test_api_contract_health_providers_and_analyze() -> None:
     assert body["request_id"] == "api-1"
     assert body["route"]["expert"] == "text-expert"
     assert body["metrics"]["cloud_image_uploaded"] is False
+    progress = client.get("/api/progress/api-1")
+    assert progress.status_code == 200
+    snapshot = progress.json()
+    assert snapshot["complete"] is True
+    assert [event["stage"] for event in snapshot["events"]] == [
+        "capture_received",
+        "perception",
+        "mir",
+        "intent",
+        "routing",
+        "provider",
+        "provider",
+        "validation",
+    ]
 
 
 def test_api_rejects_non_image_upload() -> None:

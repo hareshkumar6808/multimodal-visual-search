@@ -19,12 +19,13 @@ class GeminiProvider(Provider):
         timeout: float,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
-        super().__init__(daily_budget=daily_budget)
+        super().__init__(daily_budget=daily_budget, family="gemini")
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout = timeout
-        self.client = httpx.AsyncClient(timeout=timeout, transport=transport)
+        request_timeout = httpx.Timeout(timeout, connect=min(timeout, 3.0))
+        self.client = httpx.AsyncClient(timeout=request_timeout, transport=transport)
 
     @property
     def configured(self) -> bool:

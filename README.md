@@ -20,7 +20,6 @@ The setup script installs repository dependencies and downloads the pinned llama
 ```powershell
 git clone https://github.com/hareshkumar6808/multimodal-visual-search.git
 cd multimodal-visual-search
-git switch stage1-integration
 .\scripts\setup-stage1.ps1
 .\scripts\run-stage1.ps1
 ```

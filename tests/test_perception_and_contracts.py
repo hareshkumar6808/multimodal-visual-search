@@ -36,9 +36,12 @@ def mir_dict(request_id: str = "request") -> dict[str, object]:
     }
 
 
-def test_canonical_mir_v01_accepts_agreed_contract_and_rejects_incompatible_values() -> None:
+def test_canonical_mir_accepts_v01_and_v02_and_rejects_unknown_values() -> None:
     assert MIR.model_validate(mir_dict()).mir_version == "0.1"
-    for field, value in (("mir_version", "0.2"), ("primary_modality", "unknown")):
+    v02 = mir_dict()
+    v02["mir_version"] = "0.2"
+    assert MIR.model_validate(v02).mir_version == "0.2"
+    for field, value in (("mir_version", "0.3"), ("primary_modality", "unknown")):
         invalid = mir_dict()
         invalid[field] = value
         with pytest.raises(ValidationError):

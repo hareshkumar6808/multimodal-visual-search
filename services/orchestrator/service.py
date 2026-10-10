@@ -19,7 +19,12 @@ from services.orchestrator.perception import PerceptionAdapter
 from services.orchestrator.progress import ProgressStore
 from services.orchestrator.prompting import build_prompt
 from services.orchestrator.providers.registry import ProviderRegistry
-from services.orchestrator.routing import RuleRouter
+from services.orchestrator.routing import (
+    ExpertRoute,
+    RouteDecisionV2,
+    RuleRouter,
+    UnifiedTaskRouter,
+)
 from services.orchestrator.validation import ResponseValidationError, validate_answer
 
 logger = logging.getLogger(__name__)
@@ -29,7 +34,7 @@ class Orchestrator:
     def __init__(
         self,
         perception: PerceptionAdapter,
-        router: RuleRouter,
+        router: RuleRouter | UnifiedTaskRouter,
         providers: ProviderRegistry,
         conversations: ConversationStore | None = None,
         progress: ProgressStore | None = None,
@@ -155,12 +160,14 @@ class Orchestrator:
         intent = classify_intent(payload.query, mir.primary_modality)
         logger.info("INTENT_SELECTED request_id=%s intent=%s", payload.request_id, intent)
         trace.append(TraceEvent(stage="intent", status="complete", message=intent.title()))
-        self.progress.append(
-            payload.request_id, "intent", "complete", f"Intent: {intent}"
-        )
+        self.progress.append(payload.request_id, "intent", "complete", f"Intent: {intent}")
 
         routing_started = perf_counter()
-        expert_route = self.router.route(mir, intent)
+        expert_route = (
+            self.router.route(mir, intent, payload.query)
+            if isinstance(self.router, UnifiedTaskRouter)
+            else self.router.route(mir, intent)
+        )
         logger.info(
             "EXPERT_SELECTED request_id=%s expert=%s",
             payload.request_id,
@@ -205,6 +212,7 @@ class Orchestrator:
                     expert=expert_route.expert.name,
                     provider=None,
                     reason_code="EMPTY_QUERY_LOCAL_SUGGESTIONS",
+                    **self._stage2_route_fields(expert_route),
                 ),
                 trace=trace,
                 metrics=Metrics(
@@ -214,6 +222,7 @@ class Orchestrator:
                     provider_ms=0,
                     cloud_image_uploaded=False,
                     api_calls=0,
+                    **self._router_metric_fields(expert_route),
                 ),
             )
             self.conversations.append_exchange(
@@ -229,13 +238,26 @@ class Orchestrator:
 
         prompt = build_prompt(expert_route.expert, mir, payload, history)
         prefer_cloud = (
-            expert_route.image_required
+            getattr(expert_route, "execution_mode", None) in {"cloud_text", "cloud_vision"}
+            or expert_route.image_required
             or expert_route.expert.name
             in {"code-expert", "table-expert", "chart-expert", "vision-expert"}
             or intent in {"explain", "debug", "compare", "calculate", "search", "general"}
             or len(history) >= 4
             or len(mir.ocr.text) > 1_200
         )
+        local_only = "local_only" in mir.privacy_flags or bool(mir.context.get("local_only", False))
+        ranked_candidates = [
+            provider.name
+            for provider in self.providers.ranked(
+                expert_route.expert,
+                expert_route.image_required,
+                prefer_cloud=prefer_cloud,
+                local_only=local_only,
+                task_kind="vision" if expert_route.image_required else "text",
+            )
+        ]
+        provider_policy_reason = self.providers.last_policy_reason
         (
             provider_name,
             result,
@@ -249,6 +271,8 @@ class Orchestrator:
             mime_type,
             payload.request_id,
             prefer_cloud=prefer_cloud,
+            local_only=local_only,
+            task_kind="vision" if expert_route.image_required else "text",
             on_progress=lambda stage, status, message: self.progress.append(
                 payload.request_id, stage, status, message
             ),
@@ -286,9 +310,7 @@ class Orchestrator:
         )
         if not valid:
             raise ResponseValidationError(validation_message)
-        self.progress.append(
-            payload.request_id, "validation", "complete", validation_message
-        )
+        self.progress.append(payload.request_id, "validation", "complete", validation_message)
 
         total_ms = round((perf_counter() - total_started) * 1000)
         logger.info(
@@ -312,6 +334,9 @@ class Orchestrator:
                 expert=expert_route.expert.name,
                 provider=provider_name,
                 reason_code=expert_route.reason_code,
+                ranked_provider_candidates=ranked_candidates,
+                provider_policy_reason=provider_policy_reason,
+                **self._stage2_route_fields(expert_route),
             ),
             trace=trace,
             metrics=Metrics(
@@ -321,6 +346,7 @@ class Orchestrator:
                 provider_ms=result.latency_ms,
                 cloud_image_uploaded=cloud_image_uploaded,
                 api_calls=len(failed_providers) + 1,
+                **self._router_metric_fields(expert_route),
             ),
         )
         self.conversations.append_exchange(
@@ -333,3 +359,28 @@ class Orchestrator:
         )
         self.progress.finish(payload.request_id)
         return response
+
+    @staticmethod
+    def _stage2_route_fields(route: ExpertRoute | RouteDecisionV2) -> dict[str, object]:
+        if not isinstance(route, RouteDecisionV2):
+            return {}
+        return {
+            "sub_expert": route.sub_expert,
+            "leaf_route": route.leaf_route,
+            "routing_confidence": route.routing_confidence,
+            "router_source": route.router_source,
+            "fallback_used": route.fallback_used,
+            "execution_mode": route.execution_mode,
+            "send_pixels": route.send_pixels,
+            "requested_tool": route.requested_tool,
+        }
+
+    @staticmethod
+    def _router_metric_fields(route: ExpertRoute | RouteDecisionV2) -> dict[str, float]:
+        if not isinstance(route, RouteDecisionV2):
+            return {}
+        return {
+            "feature_build_ms": route.feature_build_ms,
+            "classifier_ms": route.classifier_ms,
+            "router_total_ms": route.router_total_ms,
+        }

@@ -1,11 +1,17 @@
 import logging
 from collections.abc import Callable
+from time import perf_counter
 
 from services.orchestrator.config import Settings
 from services.orchestrator.experts import Expert
 from services.orchestrator.providers.base import Provider, ProviderError, ProviderResult
 from services.orchestrator.providers.gemini import GeminiProvider
 from services.orchestrator.providers.openai_compatible import OpenAICompatibleProvider
+from services.orchestrator.routing.adaptive_provider_policy import (
+    AdaptiveProviderPolicy,
+    ProviderPolicySettings,
+)
+from services.orchestrator.routing.provider_performance import ProviderPerformanceStore
 
 
 class NoCompatibleProviderError(RuntimeError):
@@ -16,11 +22,22 @@ logger = logging.getLogger(__name__)
 
 
 class ProviderRegistry:
-    def __init__(self, providers: list[Provider]) -> None:
+    def __init__(
+        self,
+        providers: list[Provider],
+        performance: ProviderPerformanceStore | None = None,
+        policy_settings: ProviderPolicySettings | None = None,
+    ) -> None:
         self.providers = providers
+        self.performance = performance
+        self.policy = AdaptiveProviderPolicy(performance, policy_settings)
+        self.last_policy_reason = "NOT_RANKED"
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "ProviderRegistry":
+        performance = ProviderPerformanceStore(
+            settings.provider_performance_db_path, alpha=settings.provider_ewma_alpha
+        )
         return cls(
             [
                 OpenAICompatibleProvider(
@@ -79,57 +96,35 @@ class ProviderRegistry:
                     timeout=settings.local_provider_timeout_seconds,
                     max_tokens=settings.local_max_tokens,
                 ),
-            ]
+            ],
+            performance,
+            ProviderPolicySettings(
+                ttft_weight=settings.provider_ttft_weight,
+                total_latency_weight=settings.provider_total_latency_weight,
+                failure_penalty_ms=settings.provider_failure_penalty_ms,
+                min_samples=settings.provider_min_samples,
+            ),
         )
 
     def ranked(
-        self, expert: Expert, image_required: bool, *, prefer_cloud: bool = False
+        self,
+        expert: Expert,
+        image_required: bool,
+        *,
+        prefer_cloud: bool = False,
+        local_only: bool = False,
+        task_kind: str | None = None,
     ) -> list[Provider]:
-        compatible = [
-            provider
-            for provider in self.providers
-            if (provider.family or provider.name) in expert.compatible_providers
-            and provider.available()
-        ]
-
-        if prefer_cloud:
-            preferred_names = (
-                ("gemini", "nvidia", "local")
-                if image_required or expert.name in {"vision-expert", "chart-expert"}
-                else ("nvidia", "gemini", "local")
-            )
-        else:
-            preferred_names = ("local", "gemini", "nvidia")
-        provider_priority = {name: index for index, name in enumerate(preferred_names)}
-
-        # Apply the route-specific quality/privacy preference first, then favor healthy,
-        # in-budget, low-latency providers. Unavailable providers were already filtered.
-        def score(provider: Provider) -> tuple[float, float, float, float, float, float, float]:
-            failure_rate = provider.stats.failures / max(provider.stats.session_requests, 1)
-            latency = provider.stats.average_latency_ms or 0
-            bounded = 1.0 if provider.daily_budget > 0 else 0.0
-            budget_used = (
-                provider.stats.requests_today / provider.daily_budget
-                if provider.daily_budget > 0
-                else 0.0
-            )
-            family = provider.family or provider.name
-            priority = float(provider_priority.get(family, len(provider_priority)))
-            specialization = 0.0 if expert.name in provider.preferred_experts else 1.0
-            vision_penalty = (
-                1.0 if image_required and "vision" not in provider.capabilities else 0.0
-            )
-            return (
-                vision_penalty,
-                priority,
-                failure_rate,
-                specialization,
-                bounded,
-                budget_used,
-                latency,
-            )
-
-        return sorted(compatible, key=score)
+        ranked, reason = self.policy.rank(
+            self.providers,
+            expert,
+            image_required=image_required,
+            prefer_cloud=prefer_cloud,
+            local_only=local_only,
+            task_kind=task_kind or ("vision" if image_required else "text"),
+        )
+        self.last_policy_reason = reason
+        return ranked
 
     async def generate_with_fallback(
         self,
@@ -141,9 +136,35 @@ class ProviderRegistry:
         request_id: str,
         *,
         prefer_cloud: bool = False,
+        local_only: bool = False,
+        task_kind: str | None = None,
         on_progress: Callable[[str, str, str], None] | None = None,
     ) -> tuple[str, ProviderResult, list[str], bool]:
-        candidates = self.ranked(expert, image_required, prefer_cloud=prefer_cloud)
+        resolved_task_kind = task_kind or ("vision" if image_required else "text")
+        candidates = self.ranked(
+            expert,
+            image_required,
+            prefer_cloud=prefer_cloud,
+            local_only=local_only,
+            task_kind=resolved_task_kind,
+        )
+        # A visual route first considers only providers that can receive pixels. If all
+        # of those fail, preserve the Stage 1 offline path by allowing a local text model
+        # to answer from OCR/context without ever receiving the image.
+        if image_required:
+            text_fallbacks = self.ranked(
+                expert,
+                False,
+                prefer_cloud=False,
+                local_only=True,
+                task_kind=f"{resolved_task_kind}:ocr-fallback",
+            )
+            candidate_names = {provider.name for provider in candidates}
+            candidates.extend(
+                provider
+                for provider in text_fallbacks
+                if provider.name not in candidate_names and "vision" not in provider.capabilities
+            )
         if not candidates:
             raise NoCompatibleProviderError("No configured, available provider supports this route")
         failures: list[str] = []
@@ -169,10 +190,18 @@ class ProviderRegistry:
                 )
             attempts = 2 if provider.is_cloud else 1
             for attempt in range(attempts):
+                attempt_started = perf_counter()
                 try:
                     result = await provider.generate(
                         provider_prompt, image_bytes if send_image else None, mime_type
                     )
+                    if self.performance:
+                        self.performance.record(
+                            provider.name,
+                            resolved_task_kind,
+                            total_ms=(perf_counter() - attempt_started) * 1000,
+                            success=True,
+                        )
                     if on_progress:
                         on_progress(
                             "provider",
@@ -181,6 +210,13 @@ class ProviderRegistry:
                         )
                     return provider.name, result, failures, cloud_image_uploaded
                 except ProviderError as exc:
+                    if self.performance:
+                        self.performance.record(
+                            provider.name,
+                            resolved_task_kind,
+                            total_ms=(perf_counter() - attempt_started) * 1000,
+                            success=False,
+                        )
                     retrying = attempt + 1 < attempts
                     logger.warning(
                         "provider_failed request_id=%s provider=%s category=%s "
@@ -211,6 +247,8 @@ class ProviderRegistry:
     async def aclose(self) -> None:
         for provider in self.providers:
             await provider.aclose()
+        if self.performance:
+            self.performance.close()
 
     def safe_status(self) -> list[dict[str, object]]:
         result: list[dict[str, object]] = []

@@ -52,7 +52,7 @@ def build_prompt(
     payload: AnalyzePayload,
     history: list[tuple[str, str]] | None = None,
 ) -> str:
-    lines = [SYSTEM_INSTRUCTIONS[expert.name]]
+    lines = [SYSTEM_INSTRUCTIONS.get(expert.name, SYSTEM_INSTRUCTIONS["general-expert"])]
     if expert.name in {"text-expert", "code-expert", "table-expert", "general-expert"}:
         if mir.ocr.text:
             lines.append(f"EVIDENCE START\n{mir.ocr.text[:8_000]}\nEVIDENCE END")

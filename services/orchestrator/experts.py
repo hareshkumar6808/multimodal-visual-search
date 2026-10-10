@@ -45,6 +45,14 @@ EXPERTS: dict[str, Expert] = {
         "extracted_code",
         frozenset({"nvidia", "gemini", "local"}),
     ),
+    "math-expert": Expert(
+        "math-expert",
+        frozenset({"math", "text"}),
+        ALL_INTENTS,
+        False,
+        "math_expression_or_ocr",
+        frozenset({"nvidia", "gemini", "local"}),
+    ),
     "table-expert": Expert(
         "table-expert",
         frozenset({"table", "text"}),
@@ -69,9 +77,17 @@ EXPERTS: dict[str, Expert] = {
         "image",
         frozenset({"nvidia", "gemini", "local"}),
     ),
+    "ui-expert": Expert(
+        "ui-expert",
+        frozenset({"ui", "image", "mixed"}),
+        ALL_INTENTS,
+        False,
+        "ocr_or_pixels",
+        frozenset({"nvidia", "gemini", "local"}),
+    ),
     "general-expert": Expert(
         "general-expert",
-        frozenset({"text", "code", "table", "chart", "image", "mixed"}),
+        frozenset({"text", "code", "math", "table", "chart", "image", "ui", "mixed"}),
         ALL_INTENTS,
         False,
         "best_available",
@@ -82,9 +98,11 @@ EXPERTS: dict[str, Expert] = {
 
 SUGGESTIONS: dict[Modality, list[str]] = {
     "code": ["Explain this", "Debug this", "Optimize this", "What does this output?"],
+    "math": ["Solve this", "Explain this", "Check the result", "Show the steps"],
     "table": ["Summarize", "Extract data", "Compare values", "Find maximum"],
     "chart": ["Explain trend", "Extract data", "Find anomaly", "Compare values"],
     "image": ["Identify", "Explain", "Describe", "Visual search"],
+    "ui": ["Read this", "Explain this screen", "Find the control", "Describe the layout"],
     "text": ["Explain", "Summarize", "Translate", "Verify"],
     "mixed": ["Explain", "Summarize", "Compare components", "Extract information"],
 }

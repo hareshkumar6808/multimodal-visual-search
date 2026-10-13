@@ -108,6 +108,6 @@ def test_mir_v01_rejects_out_of_bounds_modality_score() -> None:
 
 def test_mir_v01_rejects_invalid_modality_name() -> None:
     raw = valid_mir_dict()
-    raw["primary_modality"] = "video"  # type: ignore[assignment]
+    raw["primary_modality"] = "video"
     with pytest.raises(ValidationError):
         MIR.model_validate(raw)

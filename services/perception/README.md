@@ -6,14 +6,14 @@ The **Multimodal Perception** layer validates screenshot bytes, runs local OCR, 
 
 `services/perception/representation/` defines an injectable `RepresentationSelector` interface and a deterministic `HeuristicRepresentationSelector` fallback. It emits one of `text_sufficient`, `structure_sufficient`, `pixels_required`, or `mixed`, with per-class scores, confidence, pixel-dependency prior, provenance, available representations, and local capabilities. Low confidence, weak OCR, visual content, or mixed evidence conservatively retains pixels. The result is metadata only; this stage does not delete or upload image pixels.
 
-The default implementation is heuristic, not learned. It uses the existing OCR confidence and modality/layout signals. A future model selector can be injected; exceptions fall back to the heuristic. No training or dataset scripts run in the request pipeline. This checkout has no PyTorch/ONNX dependency or verified four-class labeled screenshot dataset, so no classifier was trained and no ML accuracy or latency is claimed. Hardware inventory was unavailable in this environment (Windows management queries denied).
+The default selector loads a locally packaged MobileNetV3-Small classifier when its optional inference runtime and artifact are available. It never downloads weights or data at application startup. Missing, corrupt, low-confidence, or visually conflicting model results fall back to the heuristic and preserve pixels when uncertain. Training, dataset preparation, export, and benchmark scripts live under `experiments/perception/representation/` and are outside the request pipeline. The model was trained on proxy labels derived from DocLayNet document annotations; its scores are not validated as ground truth for arbitrary screenshots. See that experiment directory's README for data provenance and measured results.
 
 ---
 
 ## Technical Honesty & Scope Declarations
 
 > [!IMPORTANT]
-> - **Heuristic Profiling (Not Machine Learning)**: Modality profiling uses deterministic, transparent heuristic rules based on OCR token keywords, syntax patterns, indentation, and layout bounding boxes. **This is NOT a trained ML classifier.**
+> - **Representation Prediction Uses Proxy Labels**: The packaged MobileNetV3-Small model was trained against classes heuristically mapped from document-layout annotations. Its evaluation is limited and does not establish general screenshot performance. A conservative deterministic heuristic remains the fallback.
 > - **Basic Layout Extraction (Not Advanced Semantic Decomposition)**: Object extraction groups OCR bounding boxes into lines, approximate paragraphs, code blocks, table regions, and visual areas based on spatial geometry. **This is NOT learned semantic segmentation, object detection, or vision-language scene reasoning.**
 > - **Lightweight Privacy Scanning (Not a Privacy AI)**: Privacy detection uses conservative regex patterns for emails, phone numbers, and obvious API keys/credentials.
 > - **Stage 1 Boolean Heuristic (Not Full Visual Dependency Score)**: `visual_required` is a simple deterministic decision rule. **This is NOT the full future Visual Dependency Score, Minimum Sufficient Modality, or Loss-Aware Modality Compression.**
@@ -216,6 +216,6 @@ print(pipeline.last_telemetry)
 
 1. **OCR Dependent on Font Size & DPI**: Extremely small or stylized typography on high-DPI displays may yield low OCR confidence. Future work should add multi-scale image pyramid OCR pre-processing.
 2. **Heuristic Collision**: Code comments containing extensive natural language prose may slightly elevate text scores.
-3. **Future Learned Classifier (Phase 2/3)**: Stage 1 deliberately avoids machine learning to ensure 100% deterministic local predictability. In Phase 2/3, a lightweight quantized local vision model (e.g. MobileNet / FastViT) will be evaluated against this deterministic baseline.
-4. **Visual Dependency Score**: Phase 2 will introduce an information-loss estimation metric comparing tokenized text entropy with image pixel entropy.
+3. **Learned Classifier**: The local MobileNetV3-Small integration has limited held-out data, especially for `pixels_required` and `mixed`; do not treat it as a general-purpose screenshot classifier.
+4. **Visual Dependency Score**: The pixel-dependency prior is a classifier/heuristic score, not an information-loss estimate from token and pixel entropy.
 

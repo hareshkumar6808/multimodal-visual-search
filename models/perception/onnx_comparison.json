@@ -1,0 +1,22 @@
+{
+  "latency_ms": {
+    "onnx_runtime_cpu_median": 2.860699954908341,
+    "onnx_runtime_cpu_p95": 4.087200039066374,
+    "onnx_speedup": 10.583336404087449,
+    "pytorch_cpu_median": 30.27574997395277,
+    "pytorch_cpu_p95": 49.92969997692853
+  },
+  "onnx_bytes": 6097447,
+  "onnx_path": "models\\perception\\mobilenet_v3_small.onnx",
+  "parity": {
+    "argmax_agreement_rate": 1.0,
+    "max_absolute_probability_difference": 6.034970283508301e-06,
+    "reliable": true,
+    "reliable_threshold": 0.0001
+  },
+  "repeats_per_sample": 30,
+  "retained": true,
+  "sample_count": 20,
+  "useful": true,
+  "useful_speedup_threshold": 1.1
+}

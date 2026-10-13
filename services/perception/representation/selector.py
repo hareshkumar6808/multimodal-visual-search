@@ -1,8 +1,8 @@
 """Representation selection interface and conservative local fallback.
 
-The default selector is deterministic and makes no learned-model claims. Model
-implementations can subclass ``RepresentationSelector`` and return the same MIR
-contract; pipeline integration catches failures and uses this heuristic selector.
+Learned selectors and the pipeline fallback share this MIR contract. The
+heuristic implementation remains deterministic and preserves pixels when
+evidence is uncertain.
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ class RepresentationSelector(ABC):
         overall_confidence: float,
         ocr: OCRResult,
         visual_required: bool,
+        image_bytes: bytes,
     ) -> RepresentationInfo:
         """Return a validated selection, including confidence and provenance."""
 
@@ -38,6 +39,7 @@ class HeuristicRepresentationSelector(RepresentationSelector):
         overall_confidence: float,
         ocr: OCRResult,
         visual_required: bool,
+        image_bytes: bytes,
     ) -> RepresentationInfo:
         ocr_confidence = ocr.confidence or 0.0
         has_text = bool(ocr.text.strip())

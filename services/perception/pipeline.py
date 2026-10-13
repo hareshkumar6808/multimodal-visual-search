@@ -17,6 +17,7 @@ from services.perception.privacy import scan_privacy
 from services.perception.profiling import profile_multimodal
 from services.perception.representation import (
     HeuristicRepresentationSelector,
+    MobileNetV3SmallSelector,
     RepresentationSelector,
 )
 from services.perception.visual_dependency import evaluate_visual_required
@@ -35,7 +36,7 @@ class PerceptionPipeline:
     ) -> None:
         self.ocr_engine = ocr_engine or get_default_ocr_engine(tesseract_path=tesseract_path)
         self.representation_selector = (
-            representation_selector or HeuristicRepresentationSelector()
+            representation_selector or MobileNetV3SmallSelector()
         )
         self._fallback_selector = HeuristicRepresentationSelector()
         self.last_telemetry: dict[str, int] = {}
@@ -112,6 +113,7 @@ class PerceptionPipeline:
                 overall_confidence,
                 ocr_result,
                 visual_required,
+                image_bytes,
             )
         except Exception:
             logger.exception("representation_selection_failed_using_heuristic")
@@ -121,6 +123,7 @@ class PerceptionPipeline:
                 overall_confidence,
                 ocr_result,
                 visual_required,
+                image_bytes,
             )
         representation_ms = int((time.perf_counter() - representation_start) * 1000)
 

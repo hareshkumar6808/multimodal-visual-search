@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import io
+from pathlib import Path
 
+import pytest
 from PIL import Image
 
 from contracts.models import MIR, RepresentationInfo
@@ -9,6 +11,14 @@ from services.perception import PerceptionPipeline
 from services.perception.models import Modalities, OCRResult
 from services.perception.ocr.base import OCREngine
 from services.perception.representation import HeuristicRepresentationSelector
+from services.perception.representation.mobilenet import MobileNetV3SmallSelector
+
+
+def make_png(width: int = 40, height: int = 30) -> bytes:
+    image = Image.new("RGB", (width, height), "white")
+    stream = io.BytesIO()
+    image.save(stream, format="PNG")
+    return stream.getvalue()
 
 
 def _select(
@@ -33,6 +43,7 @@ def _select(
         confidence,
         ocr or OCRResult(text="Readable content", confidence=0.92),
         visual,
+        b"fake image bytes",
     )
     assert result.kind == kind
     return result
@@ -85,6 +96,127 @@ class StaticOCR(OCREngine):
 class BrokenSelector:
     def select(self, *args: object, **kwargs: object) -> RepresentationInfo:
         raise RuntimeError("optional model unavailable")
+
+
+def test_missing_model_falls_back_without_runtime_download(tmp_path: Path) -> None:
+    selector = MobileNetV3SmallSelector(
+        tmp_path / "missing.pth", onnx_path=tmp_path / "missing.onnx"
+    )
+    result = selector.select(
+        Modalities(text=0.8),
+        "text",
+        0.9,
+        OCRResult(text="Readable content", confidence=0.9),
+        False,
+        b"not decoded because no checkpoint exists",
+    )
+
+    assert result.source == "heuristic"
+    assert result.model is None
+    assert result.local_capabilities["ml_model"] is False
+    assert selector._load_attempted is True
+    assert selector.model_available is False
+
+
+def test_corrupt_model_falls_back_conservatively(tmp_path: Path) -> None:
+    pytest.importorskip("torch")
+    model_path = tmp_path / "corrupt.pth"
+    model_path.write_bytes(b"not a pytorch checkpoint")
+    selector = MobileNetV3SmallSelector(
+        model_path, onnx_path=tmp_path / "missing.onnx"
+    )
+    result = selector.select(
+        Modalities(image=0.9),
+        "image",
+        0.9,
+        OCRResult(text="", confidence=None),
+        True,
+        b"pixels are still retained by the fallback",
+    )
+
+    assert result.kind == "pixels_required"
+    assert result.source == "heuristic"
+    assert selector.model_available is False
+
+
+def test_model_probabilities_normalize_and_checkpoint_loads_once(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    torch = pytest.importorskip("torch")
+    pytest.importorskip("torchvision")
+    root = Path(__file__).resolve().parents[2]
+    checkpoint = root / "models/perception/mobilenet_v3_small.pth"
+    if not checkpoint.is_file():
+        pytest.skip("trained local MobileNet artifact is not present")
+    local_checkpoint = tmp_path / "local-only.pth"
+    local_checkpoint.write_bytes(checkpoint.read_bytes())
+
+    def no_remote_weights(*args: object, **kwargs: object) -> None:
+        raise AssertionError("runtime must never fetch model weights")
+
+    monkeypatch.setattr(torch.hub, "load_state_dict_from_url", no_remote_weights)
+    image = make_png()
+    selector = MobileNetV3SmallSelector(
+        local_checkpoint, onnx_path=tmp_path / "missing.onnx"
+    )
+    first = selector.score_image(image)
+    model = selector._model
+    second = selector.score_image(image)
+    second_selector = MobileNetV3SmallSelector(
+        local_checkpoint, onnx_path=tmp_path / "missing.onnx"
+    )
+    second_selector.score_image(image)
+
+    assert len(first) == 4
+    assert sum(first) == pytest.approx(1.0, abs=1e-6)
+    assert sum(second) == pytest.approx(1.0, abs=1e-6)
+    assert selector.model_available is True
+    assert selector._model is model
+    assert second_selector._model is model
+
+
+def test_onnx_model_normalizes_and_runs_without_network(tmp_path: Path) -> None:
+    ort = pytest.importorskip("onnxruntime")
+    root = Path(__file__).resolve().parents[2]
+    onnx_model = root / "models/perception/mobilenet_v3_small.onnx"
+    if not onnx_model.is_file():
+        pytest.skip("validated ONNX artifact is not present")
+    local_model = tmp_path / "local-only.onnx"
+    local_model.write_bytes(onnx_model.read_bytes())
+    selector = MobileNetV3SmallSelector(
+        tmp_path / "missing.pth", onnx_path=local_model
+    )
+
+    probabilities = selector.score_image(make_png())
+
+    assert len(probabilities) == 4
+    assert sum(probabilities) == pytest.approx(1.0, abs=1e-6)
+    assert selector.model_available is True
+    assert selector._backend == "onnxruntime"
+    assert isinstance(selector._model, ort.InferenceSession)
+
+
+def test_uncertain_model_prediction_preserves_pixels(monkeypatch: pytest.MonkeyPatch) -> None:
+    selector = MobileNetV3SmallSelector("unused.pth")
+    monkeypatch.setattr(selector, "_predict", lambda _image: [0.3, 0.3, 0.2, 0.2])
+    result = selector.select(
+        Modalities(text=0.8),
+        "text",
+        0.9,
+        OCRResult(text="Readable content", confidence=0.9),
+        False,
+        b"image",
+    )
+
+    assert result.kind == "pixels_required"
+    assert result.scores.model_dump() == {
+        "text_sufficient": 0.3,
+        "structure_sufficient": 0.3,
+        "pixels_required": 0.2,
+        "mixed": 0.2,
+    }
+    assert sum(result.scores.model_dump().values()) == pytest.approx(1.0)
 
 
 def test_unavailable_model_uses_heuristic_and_emits_v02() -> None:

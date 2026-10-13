@@ -1,0 +1,3735 @@
+{
+  "by_document_category": {
+    "financial_reports": {
+      "composed": {
+        "accuracy": 0.5,
+        "combined_critical_errors": {
+          "count": 2,
+          "rate": 0.6666666666666666,
+          "support": 3
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              1,
+              1,
+              3,
+              1
+            ],
+            [
+              1,
+              7,
+              0,
+              1
+            ],
+            [
+              1,
+              0,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0,
+              1
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 1,
+            "rate": 0.5,
+            "support": 2
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 1,
+            "rate": 1.0,
+            "support": 1
+          }
+        },
+        "macro_f1": 0.3558823529411765,
+        "macro_precision": 0.3645833333333333,
+        "macro_recall": 0.3611111111111111,
+        "per_class": {
+          "mixed": {
+            "f1": 0.4,
+            "precision": 0.3333333333333333,
+            "recall": 0.5,
+            "support": 2
+          },
+          "pixels_required": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 1
+          },
+          "structure_sufficient": {
+            "f1": 0.823529411764706,
+            "precision": 0.875,
+            "recall": 0.7777777777777778,
+            "support": 9
+          },
+          "text_sufficient": {
+            "f1": 0.2,
+            "precision": 0.25,
+            "recall": 0.16666666666666666,
+            "support": 6
+          }
+        },
+        "pixel_preservation": {
+          "count": 6,
+          "rate": 0.3333333333333333,
+          "unnecessary_count": 5,
+          "unnecessary_support": 15
+        },
+        "sample_count": 18
+      },
+      "count": 18,
+      "heuristic": {
+        "accuracy": 0.2777777777777778,
+        "combined_critical_errors": {
+          "count": 2,
+          "rate": 0.6666666666666666,
+          "support": 3
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              4,
+              0,
+              1,
+              1
+            ],
+            [
+              8,
+              0,
+              0,
+              1
+            ],
+            [
+              1,
+              0,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0,
+              1
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 1,
+            "rate": 0.5,
+            "support": 2
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 1,
+            "rate": 1.0,
+            "support": 1
+          }
+        },
+        "macro_f1": 0.2,
+        "macro_precision": 0.15476190476190477,
+        "macro_recall": 0.29166666666666663,
+        "per_class": {
+          "mixed": {
+            "f1": 0.4,
+            "precision": 0.3333333333333333,
+            "recall": 0.5,
+            "support": 2
+          },
+          "pixels_required": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 1
+          },
+          "structure_sufficient": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 9
+          },
+          "text_sufficient": {
+            "f1": 0.4,
+            "precision": 0.2857142857142857,
+            "recall": 0.6666666666666666,
+            "support": 6
+          }
+        },
+        "pixel_preservation": {
+          "count": 4,
+          "rate": 0.2222222222222222,
+          "unnecessary_count": 3,
+          "unnecessary_support": 15
+        },
+        "sample_count": 18
+      },
+      "raw_model": {
+        "accuracy": 0.6666666666666666,
+        "combined_critical_errors": {
+          "count": 3,
+          "rate": 1.0,
+          "support": 3
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              4,
+              2,
+              0,
+              0
+            ],
+            [
+              1,
+              8,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0,
+              0
+            ],
+            [
+              2,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 2,
+            "rate": 1.0,
+            "support": 2
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 1,
+            "rate": 1.0,
+            "support": 1
+          }
+        },
+        "macro_f1": 0.3533834586466166,
+        "macro_precision": 0.325,
+        "macro_recall": 0.38888888888888884,
+        "per_class": {
+          "mixed": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 2
+          },
+          "pixels_required": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 1
+          },
+          "structure_sufficient": {
+            "f1": 0.8421052631578948,
+            "precision": 0.8,
+            "recall": 0.8888888888888888,
+            "support": 9
+          },
+          "text_sufficient": {
+            "f1": 0.5714285714285715,
+            "precision": 0.5,
+            "recall": 0.6666666666666666,
+            "support": 6
+          }
+        },
+        "pixel_preservation": {
+          "count": 0,
+          "rate": 0.0,
+          "unnecessary_count": 0,
+          "unnecessary_support": 15
+        },
+        "sample_count": 18
+      }
+    },
+    "government_tenders": {
+      "composed": {
+        "accuracy": 1.0,
+        "combined_critical_errors": {
+          "count": 0,
+          "rate": 0.0,
+          "support": 0
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          }
+        },
+        "macro_f1": 0.25,
+        "macro_precision": 0.25,
+        "macro_recall": 0.25,
+        "per_class": {
+          "mixed": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "structure_sufficient": {
+            "f1": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "support": 1
+          },
+          "text_sufficient": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          }
+        },
+        "pixel_preservation": {
+          "count": 0,
+          "rate": 0.0,
+          "unnecessary_count": 0,
+          "unnecessary_support": 1
+        },
+        "sample_count": 1
+      },
+      "count": 1,
+      "heuristic": {
+        "accuracy": 0.0,
+        "combined_critical_errors": {
+          "count": 0,
+          "rate": 0.0,
+          "support": 0
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              1,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          }
+        },
+        "macro_f1": 0.0,
+        "macro_precision": 0.0,
+        "macro_recall": 0.0,
+        "per_class": {
+          "mixed": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "structure_sufficient": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 1
+          },
+          "text_sufficient": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          }
+        },
+        "pixel_preservation": {
+          "count": 0,
+          "rate": 0.0,
+          "unnecessary_count": 0,
+          "unnecessary_support": 1
+        },
+        "sample_count": 1
+      },
+      "raw_model": {
+        "accuracy": 1.0,
+        "combined_critical_errors": {
+          "count": 0,
+          "rate": 0.0,
+          "support": 0
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          }
+        },
+        "macro_f1": 0.25,
+        "macro_precision": 0.25,
+        "macro_recall": 0.25,
+        "per_class": {
+          "mixed": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "structure_sufficient": {
+            "f1": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "support": 1
+          },
+          "text_sufficient": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          }
+        },
+        "pixel_preservation": {
+          "count": 0,
+          "rate": 0.0,
+          "unnecessary_count": 0,
+          "unnecessary_support": 1
+        },
+        "sample_count": 1
+      }
+    },
+    "laws_and_regulations": {
+      "composed": {
+        "accuracy": 0.6666666666666666,
+        "combined_critical_errors": {
+          "count": 0,
+          "rate": 0.0,
+          "support": 3
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              2,
+              0,
+              1,
+              1
+            ],
+            [
+              0,
+              3,
+              1,
+              1
+            ],
+            [
+              0,
+              0,
+              3,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 3
+          }
+        },
+        "macro_f1": 0.5416666666666666,
+        "macro_precision": 0.65,
+        "macro_recall": 0.525,
+        "per_class": {
+          "mixed": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "f1": 0.7499999999999999,
+            "precision": 0.6,
+            "recall": 1.0,
+            "support": 3
+          },
+          "structure_sufficient": {
+            "f1": 0.7499999999999999,
+            "precision": 1.0,
+            "recall": 0.6,
+            "support": 5
+          },
+          "text_sufficient": {
+            "f1": 0.6666666666666666,
+            "precision": 1.0,
+            "recall": 0.5,
+            "support": 4
+          }
+        },
+        "pixel_preservation": {
+          "count": 7,
+          "rate": 0.5833333333333334,
+          "unnecessary_count": 4,
+          "unnecessary_support": 9
+        },
+        "sample_count": 12
+      },
+      "count": 12,
+      "heuristic": {
+        "accuracy": 0.3333333333333333,
+        "combined_critical_errors": {
+          "count": 2,
+          "rate": 0.6666666666666666,
+          "support": 3
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              2,
+              0,
+              1,
+              1
+            ],
+            [
+              2,
+              2,
+              0,
+              1
+            ],
+            [
+              2,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 2,
+            "rate": 0.6666666666666666,
+            "support": 3
+          }
+        },
+        "macro_f1": 0.24285714285714288,
+        "macro_precision": 0.3333333333333333,
+        "macro_recall": 0.225,
+        "per_class": {
+          "mixed": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 3
+          },
+          "structure_sufficient": {
+            "f1": 0.5714285714285715,
+            "precision": 1.0,
+            "recall": 0.4,
+            "support": 5
+          },
+          "text_sufficient": {
+            "f1": 0.4,
+            "precision": 0.3333333333333333,
+            "recall": 0.5,
+            "support": 4
+          }
+        },
+        "pixel_preservation": {
+          "count": 4,
+          "rate": 0.3333333333333333,
+          "unnecessary_count": 3,
+          "unnecessary_support": 9
+        },
+        "sample_count": 12
+      },
+      "raw_model": {
+        "accuracy": 0.9166666666666666,
+        "combined_critical_errors": {
+          "count": 0,
+          "rate": 0.0,
+          "support": 3
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              3,
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              5,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              3,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 3
+          }
+        },
+        "macro_f1": 0.6915584415584415,
+        "macro_precision": 0.7083333333333334,
+        "macro_recall": 0.6875,
+        "per_class": {
+          "mixed": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "f1": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "support": 3
+          },
+          "structure_sufficient": {
+            "f1": 0.9090909090909091,
+            "precision": 0.8333333333333334,
+            "recall": 1.0,
+            "support": 5
+          },
+          "text_sufficient": {
+            "f1": 0.8571428571428571,
+            "precision": 1.0,
+            "recall": 0.75,
+            "support": 4
+          }
+        },
+        "pixel_preservation": {
+          "count": 3,
+          "rate": 0.25,
+          "unnecessary_count": 0,
+          "unnecessary_support": 9
+        },
+        "sample_count": 12
+      }
+    },
+    "manuals": {
+      "composed": {
+        "accuracy": 0.058823529411764705,
+        "combined_critical_errors": {
+          "count": 0,
+          "rate": 0.0,
+          "support": 0
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              1,
+              8,
+              2,
+              4
+            ],
+            [
+              0,
+              0,
+              2,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          }
+        },
+        "macro_f1": 0.03125,
+        "macro_precision": 0.25,
+        "macro_recall": 0.016666666666666666,
+        "per_class": {
+          "mixed": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "structure_sufficient": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 2
+          },
+          "text_sufficient": {
+            "f1": 0.125,
+            "precision": 1.0,
+            "recall": 0.06666666666666667,
+            "support": 15
+          }
+        },
+        "pixel_preservation": {
+          "count": 8,
+          "rate": 0.47058823529411764,
+          "unnecessary_count": 8,
+          "unnecessary_support": 17
+        },
+        "sample_count": 17
+      },
+      "count": 17,
+      "heuristic": {
+        "accuracy": 0.4117647058823529,
+        "combined_critical_errors": {
+          "count": 0,
+          "rate": 0.0,
+          "support": 0
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              7,
+              3,
+              0,
+              5
+            ],
+            [
+              0,
+              0,
+              1,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          }
+        },
+        "macro_f1": 0.1590909090909091,
+        "macro_precision": 0.25,
+        "macro_recall": 0.11666666666666667,
+        "per_class": {
+          "mixed": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "structure_sufficient": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 2
+          },
+          "text_sufficient": {
+            "f1": 0.6363636363636364,
+            "precision": 1.0,
+            "recall": 0.4666666666666667,
+            "support": 15
+          }
+        },
+        "pixel_preservation": {
+          "count": 7,
+          "rate": 0.4117647058823529,
+          "unnecessary_count": 7,
+          "unnecessary_support": 17
+        },
+        "sample_count": 17
+      },
+      "raw_model": {
+        "accuracy": 0.23529411764705882,
+        "combined_critical_errors": {
+          "count": 0,
+          "rate": 0.0,
+          "support": 0
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              2,
+              13,
+              0,
+              0
+            ],
+            [
+              0,
+              2,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          }
+        },
+        "macro_f1": 0.11764705882352941,
+        "macro_precision": 0.2833333333333333,
+        "macro_recall": 0.2833333333333333,
+        "per_class": {
+          "mixed": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "structure_sufficient": {
+            "f1": 0.23529411764705882,
+            "precision": 0.13333333333333333,
+            "recall": 1.0,
+            "support": 2
+          },
+          "text_sufficient": {
+            "f1": 0.23529411764705882,
+            "precision": 1.0,
+            "recall": 0.13333333333333333,
+            "support": 15
+          }
+        },
+        "pixel_preservation": {
+          "count": 0,
+          "rate": 0.0,
+          "unnecessary_count": 0,
+          "unnecessary_support": 17
+        },
+        "sample_count": 17
+      }
+    },
+    "patents": {
+      "composed": {
+        "accuracy": 0.5714285714285714,
+        "combined_critical_errors": {
+          "count": 0,
+          "rate": 0.0,
+          "support": 3
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              1,
+              0,
+              1,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              3,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 3
+          }
+        },
+        "macro_f1": 0.3392857142857143,
+        "macro_precision": 0.4375,
+        "macro_recall": 0.3333333333333333,
+        "per_class": {
+          "mixed": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "f1": 0.8571428571428571,
+            "precision": 0.75,
+            "recall": 1.0,
+            "support": 3
+          },
+          "structure_sufficient": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 1
+          },
+          "text_sufficient": {
+            "f1": 0.5,
+            "precision": 1.0,
+            "recall": 0.3333333333333333,
+            "support": 3
+          }
+        },
+        "pixel_preservation": {
+          "count": 6,
+          "rate": 0.8571428571428571,
+          "unnecessary_count": 3,
+          "unnecessary_support": 4
+        },
+        "sample_count": 7
+      },
+      "count": 7,
+      "heuristic": {
+        "accuracy": 0.2857142857142857,
+        "combined_critical_errors": {
+          "count": 1,
+          "rate": 0.3333333333333333,
+          "support": 3
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              1,
+              0,
+              1,
+              1
+            ],
+            [
+              0,
+              0,
+              1,
+              0
+            ],
+            [
+              1,
+              0,
+              1,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 1,
+            "rate": 0.3333333333333333,
+            "support": 3
+          }
+        },
+        "macro_f1": 0.18333333333333335,
+        "macro_precision": 0.20833333333333331,
+        "macro_recall": 0.16666666666666666,
+        "per_class": {
+          "mixed": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "f1": 0.3333333333333333,
+            "precision": 0.3333333333333333,
+            "recall": 0.3333333333333333,
+            "support": 3
+          },
+          "structure_sufficient": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 1
+          },
+          "text_sufficient": {
+            "f1": 0.4,
+            "precision": 0.5,
+            "recall": 0.3333333333333333,
+            "support": 3
+          }
+        },
+        "pixel_preservation": {
+          "count": 5,
+          "rate": 0.7142857142857143,
+          "unnecessary_count": 3,
+          "unnecessary_support": 4
+        },
+        "sample_count": 7
+      },
+      "raw_model": {
+        "accuracy": 0.8571428571428571,
+        "combined_critical_errors": {
+          "count": 0,
+          "rate": 0.0,
+          "support": 3
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              3,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              3,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 3
+          }
+        },
+        "macro_f1": 0.5,
+        "macro_precision": 0.5,
+        "macro_recall": 0.5,
+        "per_class": {
+          "mixed": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "f1": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "support": 3
+          },
+          "structure_sufficient": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 1
+          },
+          "text_sufficient": {
+            "f1": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "support": 3
+          }
+        },
+        "pixel_preservation": {
+          "count": 4,
+          "rate": 0.5714285714285714,
+          "unnecessary_count": 1,
+          "unnecessary_support": 4
+        },
+        "sample_count": 7
+      }
+    },
+    "scientific_articles": {
+      "composed": {
+        "accuracy": 0.5,
+        "combined_critical_errors": {
+          "count": 0,
+          "rate": 0.0,
+          "support": 0
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              0,
+              2,
+              0,
+              0
+            ],
+            [
+              0,
+              4,
+              1,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          }
+        },
+        "macro_f1": 0.16666666666666666,
+        "macro_precision": 0.16666666666666666,
+        "macro_recall": 0.16666666666666666,
+        "per_class": {
+          "mixed": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "structure_sufficient": {
+            "f1": 0.6666666666666666,
+            "precision": 0.6666666666666666,
+            "recall": 0.6666666666666666,
+            "support": 6
+          },
+          "text_sufficient": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 2
+          }
+        },
+        "pixel_preservation": {
+          "count": 2,
+          "rate": 0.25,
+          "unnecessary_count": 2,
+          "unnecessary_support": 8
+        },
+        "sample_count": 8
+      },
+      "count": 8,
+      "heuristic": {
+        "accuracy": 0.375,
+        "combined_critical_errors": {
+          "count": 0,
+          "rate": 0.0,
+          "support": 0
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              2,
+              0,
+              0,
+              0
+            ],
+            [
+              3,
+              1,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          }
+        },
+        "macro_f1": 0.2142857142857143,
+        "macro_precision": 0.35,
+        "macro_recall": 0.2916666666666667,
+        "per_class": {
+          "mixed": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "structure_sufficient": {
+            "f1": 0.2857142857142857,
+            "precision": 1.0,
+            "recall": 0.16666666666666666,
+            "support": 6
+          },
+          "text_sufficient": {
+            "f1": 0.5714285714285715,
+            "precision": 0.4,
+            "recall": 1.0,
+            "support": 2
+          }
+        },
+        "pixel_preservation": {
+          "count": 2,
+          "rate": 0.25,
+          "unnecessary_count": 2,
+          "unnecessary_support": 8
+        },
+        "sample_count": 8
+      },
+      "raw_model": {
+        "accuracy": 0.625,
+        "combined_critical_errors": {
+          "count": 0,
+          "rate": 0.0,
+          "support": 0
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              0,
+              2,
+              0,
+              0
+            ],
+            [
+              1,
+              5,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 0,
+            "rate": 0.0,
+            "support": 0
+          }
+        },
+        "macro_f1": 0.1923076923076923,
+        "macro_precision": 0.17857142857142858,
+        "macro_recall": 0.20833333333333334,
+        "per_class": {
+          "mixed": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "pixels_required": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 0
+          },
+          "structure_sufficient": {
+            "f1": 0.7692307692307692,
+            "precision": 0.7142857142857143,
+            "recall": 0.8333333333333334,
+            "support": 6
+          },
+          "text_sufficient": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 2
+          }
+        },
+        "pixel_preservation": {
+          "count": 0,
+          "rate": 0.0,
+          "unnecessary_count": 0,
+          "unnecessary_support": 8
+        },
+        "sample_count": 8
+      }
+    }
+  },
+  "checkpoint": "C:\\Users\\SARVESH\\IDP PROJECT\\multimodal-visual-search-stage2\\models\\perception\\mobilenet_v3_small.onnx",
+  "class_counts": {
+    "mixed": 2,
+    "pixels_required": 7,
+    "structure_sufficient": 24,
+    "text_sufficient": 30
+  },
+  "composed_runtime_selector": {
+    "accuracy": 0.42857142857142855,
+    "combined_critical_errors": {
+      "count": 2,
+      "rate": 0.2222222222222222,
+      "support": 9
+    },
+    "confusion_matrix": {
+      "labels": [
+        "text_sufficient",
+        "structure_sufficient",
+        "pixels_required",
+        "mixed"
+      ],
+      "rows_true_columns_predicted": [
+        [
+          5,
+          11,
+          7,
+          7
+        ],
+        [
+          1,
+          15,
+          4,
+          4
+        ],
+        [
+          1,
+          0,
+          6,
+          0
+        ],
+        [
+          1,
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "critical_errors": {
+      "mixed": {
+        "false_pixel_discard_count": 1,
+        "rate": 0.5,
+        "support": 2
+      },
+      "pixels_required": {
+        "false_pixel_discard_count": 1,
+        "rate": 0.14285714285714285,
+        "support": 7
+      }
+    },
+    "macro_f1": 0.37650375939849623,
+    "macro_precision": 0.4095493966817496,
+    "macro_recall": 0.5372023809523809,
+    "per_class": {
+      "mixed": {
+        "f1": 0.14285714285714285,
+        "precision": 0.08333333333333333,
+        "recall": 0.5,
+        "support": 2
+      },
+      "pixels_required": {
+        "f1": 0.5,
+        "precision": 0.35294117647058826,
+        "recall": 0.8571428571428571,
+        "support": 7
+      },
+      "structure_sufficient": {
+        "f1": 0.6,
+        "precision": 0.5769230769230769,
+        "recall": 0.625,
+        "support": 24
+      },
+      "text_sufficient": {
+        "f1": 0.2631578947368421,
+        "precision": 0.625,
+        "recall": 0.16666666666666666,
+        "support": 30
+      }
+    },
+    "pixel_preservation": {
+      "count": 29,
+      "rate": 0.4603174603174603,
+      "unnecessary_count": 22,
+      "unnecessary_support": 54
+    },
+    "sample_count": 63
+  },
+  "dataset_manifest": "artifacts\\perception\\dataset\\doclaynet-small\\manifest.jsonl",
+  "experiment_id": "POLICY-VALIDATION-01",
+  "heuristic": {
+    "accuracy": 0.3333333333333333,
+    "combined_critical_errors": {
+      "count": 5,
+      "rate": 0.5555555555555556,
+      "support": 9
+    },
+    "confusion_matrix": {
+      "labels": [
+        "text_sufficient",
+        "structure_sufficient",
+        "pixels_required",
+        "mixed"
+      ],
+      "rows_true_columns_predicted": [
+        [
+          16,
+          3,
+          3,
+          8
+        ],
+        [
+          14,
+          3,
+          2,
+          5
+        ],
+        [
+          4,
+          0,
+          1,
+          2
+        ],
+        [
+          1,
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "critical_errors": {
+      "mixed": {
+        "false_pixel_discard_count": 1,
+        "rate": 0.5,
+        "support": 2
+      },
+      "pixels_required": {
+        "false_pixel_discard_count": 4,
+        "rate": 0.5714285714285714,
+        "support": 7
+      }
+    },
+    "macro_f1": 0.2393162393162393,
+    "macro_precision": 0.29657738095238095,
+    "macro_recall": 0.32529761904761906,
+    "per_class": {
+      "mixed": {
+        "f1": 0.1111111111111111,
+        "precision": 0.0625,
+        "recall": 0.5,
+        "support": 2
+      },
+      "pixels_required": {
+        "f1": 0.15384615384615383,
+        "precision": 0.16666666666666666,
+        "recall": 0.14285714285714285,
+        "support": 7
+      },
+      "structure_sufficient": {
+        "f1": 0.2,
+        "precision": 0.5,
+        "recall": 0.125,
+        "support": 24
+      },
+      "text_sufficient": {
+        "f1": 0.4923076923076923,
+        "precision": 0.45714285714285713,
+        "recall": 0.5333333333333333,
+        "support": 30
+      }
+    },
+    "pixel_preservation": {
+      "count": 22,
+      "rate": 0.3492063492063492,
+      "unnecessary_count": 18,
+      "unnecessary_support": 54
+    },
+    "sample_count": 63
+  },
+  "limitations": [
+    "proxy labels do not establish task-specific sufficiency",
+    "held-out test was already consulted in the previous development milestone",
+    "small minority supports, particularly mixed and pixels_required",
+    "validation threshold sweep is exploratory and not a confidence interval"
+  ],
+  "pipeline_latency_ms": {
+    "measurements": 63,
+    "median": 943.4824999189004,
+    "p95": 1670.4660000978038,
+    "scope": "warm local model; includes preflight, OCR, profiling, extraction, and selector"
+  },
+  "pixel_forwarding_policy": "representation metadata is advisory; orchestrator image_required follows Stage 1 routing, not this prediction",
+  "pixel_preservation_signals": {
+    "critical_proxy_cases_with_visual_required_false": 5,
+    "note": "Stage 1 signal only; query-specific router determines actual provider image forwarding.",
+    "stage1_visual_required_false": 42,
+    "stage1_visual_required_true": 21
+  },
+  "raw_model": {
+    "accuracy": 0.6190476190476191,
+    "combined_critical_errors": {
+      "count": 3,
+      "rate": 0.3333333333333333,
+      "support": 9
+    },
+    "confusion_matrix": {
+      "labels": [
+        "text_sufficient",
+        "structure_sufficient",
+        "pixels_required",
+        "mixed"
+      ],
+      "rows_true_columns_predicted": [
+        [
+          12,
+          18,
+          0,
+          0
+        ],
+        [
+          2,
+          21,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          6,
+          0
+        ],
+        [
+          2,
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    "critical_errors": {
+      "mixed": {
+        "false_pixel_discard_count": 2,
+        "rate": 1.0,
+        "support": 2
+      },
+      "pixels_required": {
+        "false_pixel_discard_count": 1,
+        "rate": 0.14285714285714285,
+        "support": 7
+      }
+    },
+    "macro_f1": 0.5250954719039825,
+    "macro_precision": 0.5610859728506787,
+    "macro_recall": 0.5330357142857143,
+    "per_class": {
+      "mixed": {
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "support": 2
+      },
+      "pixels_required": {
+        "f1": 0.923076923076923,
+        "precision": 1.0,
+        "recall": 0.8571428571428571,
+        "support": 7
+      },
+      "structure_sufficient": {
+        "f1": 0.6666666666666667,
+        "precision": 0.5384615384615384,
+        "recall": 0.875,
+        "support": 24
+      },
+      "text_sufficient": {
+        "f1": 0.5106382978723405,
+        "precision": 0.7058823529411765,
+        "recall": 0.4,
+        "support": 30
+      }
+    },
+    "pixel_preservation": {
+      "count": 7,
+      "rate": 0.1111111111111111,
+      "unnecessary_count": 1,
+      "unnecessary_support": 54
+    },
+    "sample_count": 63
+  },
+  "raw_model_calibration": {
+    "bins": [
+      {
+        "accuracy": 1,
+        "count": 2,
+        "lower": 0.4,
+        "mean_confidence": 0.4713020934981053,
+        "upper": 0.5
+      },
+      {
+        "accuracy": 0.5,
+        "count": 6,
+        "lower": 0.5,
+        "mean_confidence": 0.5486438298660676,
+        "upper": 0.6
+      },
+      {
+        "accuracy": 0.7142857142857143,
+        "count": 7,
+        "lower": 0.6,
+        "mean_confidence": 0.658452472385969,
+        "upper": 0.7
+      },
+      {
+        "accuracy": 0.5555555555555556,
+        "count": 9,
+        "lower": 0.7,
+        "mean_confidence": 0.7513385976193064,
+        "upper": 0.8
+      },
+      {
+        "accuracy": 0.6666666666666666,
+        "count": 9,
+        "lower": 0.8,
+        "mean_confidence": 0.8555899707053056,
+        "upper": 0.9
+      },
+      {
+        "accuracy": 0.6,
+        "count": 30,
+        "lower": 0.9,
+        "mean_confidence": 0.9659173208408588,
+        "upper": 1.0
+      }
+    ],
+    "confidence_by_correctness": {
+      "correct": {
+        "count": 39,
+        "max": 0.998731856857359,
+        "mean": 0.8289282148785684,
+        "median": 0.8575624367148494,
+        "min": 0.4469855612384789
+      },
+      "incorrect": {
+        "count": 24,
+        "max": 0.9920402219935117,
+        "mean": 0.8314712846990626,
+        "median": 0.9008848305704843,
+        "min": 0.5014130159689915
+      }
+    },
+    "ece_10_bin": 0.2568248924705664,
+    "multiclass_brier": 0.627541880850498,
+    "sample_count": 63
+  },
+  "sample_count": 63,
+  "samples": [
+    {
+      "composed_prediction": "mixed",
+      "confidence": 0.9622688751775428,
+      "doc_category": "financial_reports",
+      "heuristic_prediction": "mixed",
+      "label": "mixed",
+      "ocr_confidence": 0.8864,
+      "page_hash": "091b73f4f27de18c511637461c74200e88f2a0ea88d831c7922d4709d2bcdeaa",
+      "pipeline_ms": 868,
+      "primary_modality": "text",
+      "probabilities": [
+        0.9622688751775428,
+        0.0004674498268455759,
+        0.0371250279286395,
+        0.0001386470669722354
+      ],
+      "raw_correct": false,
+      "raw_prediction": "text_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.9884001822545679,
+      "doc_category": "financial_reports",
+      "heuristic_prediction": "text_sufficient",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.7454,
+      "page_hash": "12ac17a4b5b00db6ab1e342004a63eb300402d7577a0ca3bd8418b7efcb8f096",
+      "pipeline_ms": 1040,
+      "primary_modality": "text",
+      "probabilities": [
+        0.0029198956457689167,
+        0.9884001822545679,
+        0.00038832863935730534,
+        0.008291593460305889
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.9864710719310608,
+      "doc_category": "financial_reports",
+      "heuristic_prediction": "text_sufficient",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.8691,
+      "page_hash": "13eb6ce7f6fd1496a4c49efbdb9662211bc586656da30ecafa803c68d0018557",
+      "pipeline_ms": 1031,
+      "primary_modality": "text",
+      "probabilities": [
+        0.013005733580422101,
+        0.9864710719310608,
+        0.00013963720606834158,
+        0.00038355728244876704
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "pixels_required",
+      "confidence": 0.49561862575773175,
+      "doc_category": "financial_reports",
+      "heuristic_prediction": "text_sufficient",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.8528,
+      "page_hash": "19fb12fea8765914fd4bc8d86c921d64da953bba0f29a6ef10f789ccb97a2d1d",
+      "pipeline_ms": 615,
+      "primary_modality": "text",
+      "probabilities": [
+        0.49561862575773175,
+        0.01015565642290632,
+        0.4822042851027588,
+        0.01202143271660307
+      ],
+      "raw_correct": true,
+      "raw_prediction": "text_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "mixed",
+      "confidence": 0.7821679316217317,
+      "doc_category": "financial_reports",
+      "heuristic_prediction": "mixed",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.882,
+      "page_hash": "1e08caa7b9508fdb5cc49c80b3950eecc594e8f35049ca5818420bf9a86f6580",
+      "pipeline_ms": 612,
+      "primary_modality": "mixed",
+      "probabilities": [
+        0.7821679316217317,
+        0.05199031535193593,
+        0.1558189635248356,
+        0.010022789501496737
+      ],
+      "raw_correct": true,
+      "raw_prediction": "text_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.9241099989378597,
+      "doc_category": "laws_and_regulations",
+      "heuristic_prediction": "structure_sufficient",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.9063,
+      "page_hash": "230ec2779f4e27d58d3f003e5d11d7ca5f5acf54f148a370ad271178808177d2",
+      "pipeline_ms": 1223,
+      "primary_modality": "table",
+      "probabilities": [
+        0.06931876324538053,
+        0.9241099989378597,
+        0.004822312316719345,
+        0.0017489255000403582
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.9707834470261599,
+      "doc_category": "manuals",
+      "heuristic_prediction": "text_sufficient",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.8355,
+      "page_hash": "254790afe98e944606b96770f9c26fdf1f7b1cd59a5608dc4767f374a6dbbefb",
+      "pipeline_ms": 723,
+      "primary_modality": "text",
+      "probabilities": [
+        0.028496059797604154,
+        0.9707834470261599,
+        0.0003092303120783894,
+        0.0004112628641575638
+      ],
+      "raw_correct": false,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "pixels_required",
+      "confidence": 0.7999037638196232,
+      "doc_category": "laws_and_regulations",
+      "heuristic_prediction": "text_sufficient",
+      "label": "pixels_required",
+      "ocr_confidence": 0.9265,
+      "page_hash": "2681a55e0eb14904f25eedd839b13050ac3a4c542ef80551a5448d3ea07049a0",
+      "pipeline_ms": 878,
+      "primary_modality": "text",
+      "probabilities": [
+        0.18132256933950822,
+        0.013451409952122535,
+        0.7999037638196232,
+        0.005322256888745981
+      ],
+      "raw_correct": true,
+      "raw_prediction": "pixels_required",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "pixels_required",
+      "confidence": 0.5793744448074407,
+      "doc_category": "scientific_articles",
+      "heuristic_prediction": "mixed",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.8588,
+      "page_hash": "29e2020f0e69207a856bf6cd0fdc6c5f27aee1a0c67e133f2246d8c6dfa69c8c",
+      "pipeline_ms": 672,
+      "primary_modality": "mixed",
+      "probabilities": [
+        0.5793744448074407,
+        0.1919450500212644,
+        0.0023669920229571397,
+        0.22631351314833775
+      ],
+      "raw_correct": false,
+      "raw_prediction": "text_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.9851138866898915,
+      "doc_category": "financial_reports",
+      "heuristic_prediction": "text_sufficient",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.693,
+      "page_hash": "2d52ea3836ba406678f1527265ca40182a87b9de9c3fcf513cf142ff1fe3b5f6",
+      "pipeline_ms": 831,
+      "primary_modality": "text",
+      "probabilities": [
+        0.014795391543155435,
+        0.9851138866898915,
+        6.910630641496976e-05,
+        2.161546053801803e-05
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "text_sufficient",
+      "confidence": 0.9730588995246323,
+      "doc_category": "financial_reports",
+      "heuristic_prediction": "text_sufficient",
+      "label": "mixed",
+      "ocr_confidence": 0.9245,
+      "page_hash": "30c10ba626900d6bbb11b050accacb7a494aaeaee8a23af7a60ee1afd75a03ab",
+      "pipeline_ms": 1086,
+      "primary_modality": "text",
+      "probabilities": [
+        0.9730588995246323,
+        0.006873649057778111,
+        0.0183564636616282,
+        0.0017109877559613402
+      ],
+      "raw_correct": false,
+      "raw_prediction": "text_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.7315905922781089,
+      "doc_category": "scientific_articles",
+      "heuristic_prediction": "text_sufficient",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.836,
+      "page_hash": "31848427810e6c420e28d9562ce1c10fce14ced45db600ea2b57f0a9362f029f",
+      "pipeline_ms": 1251,
+      "primary_modality": "text",
+      "probabilities": [
+        0.07250551096607852,
+        0.7315905922781089,
+        0.04642999593064269,
+        0.14947390082517
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "text_sufficient",
+      "confidence": 0.9561925320104101,
+      "doc_category": "financial_reports",
+      "heuristic_prediction": "text_sufficient",
+      "label": "pixels_required",
+      "ocr_confidence": 0.9147,
+      "page_hash": "3507c388db887b90376c6325ed6221dc522720c3095d70842b33283b9003b9f3",
+      "pipeline_ms": 403,
+      "primary_modality": "text",
+      "probabilities": [
+        0.9561925320104101,
+        0.000245428120889048,
+        0.03680831676378638,
+        0.006753723104914524
+      ],
+      "raw_correct": false,
+      "raw_prediction": "text_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "pixels_required",
+      "confidence": 0.5014130159689915,
+      "doc_category": "financial_reports",
+      "heuristic_prediction": "text_sufficient",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.8885,
+      "page_hash": "3d08ba1d4b7946064b5d7b6edce00fddf5f9da081cbdd700b152dab7d891a2a1",
+      "pipeline_ms": 1300,
+      "primary_modality": "text",
+      "probabilities": [
+        0.4762028855252731,
+        0.5014130159689915,
+        0.020581631688492183,
+        0.0018024668172432355
+      ],
+      "raw_correct": false,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "text_sufficient",
+      "confidence": 0.7226999067790224,
+      "doc_category": "patents",
+      "heuristic_prediction": "text_sufficient",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.8623,
+      "page_hash": "454221e4f96834ad50d2d817db30208b058a58702c267a67f2edc2950574a97b",
+      "pipeline_ms": 1072,
+      "primary_modality": "text",
+      "probabilities": [
+        0.7226999067790224,
+        0.2768824197467671,
+        0.00012920245157894866,
+        0.0002884710226316701
+      ],
+      "raw_correct": true,
+      "raw_prediction": "text_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.9973687162798509,
+      "doc_category": "financial_reports",
+      "heuristic_prediction": "text_sufficient",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.8608,
+      "page_hash": "45444232c8af8dc60f20a9028e281282ed0417e3b976a0369fbcbde373b6d40c",
+      "pipeline_ms": 1030,
+      "primary_modality": "text",
+      "probabilities": [
+        0.0006712935165687537,
+        0.9973687162798509,
+        0.00040137043865088305,
+        0.001558619764929416
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "structure_sufficient",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "mixed",
+      "confidence": 0.6641453901245893,
+      "doc_category": "financial_reports",
+      "heuristic_prediction": "mixed",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.9051,
+      "page_hash": "45cfc68728082fc38f68c3a43eca0dc551919098a003c9f8b56d2b436f2eaae8",
+      "pipeline_ms": 740,
+      "primary_modality": "text",
+      "probabilities": [
+        0.3232716371541978,
+        0.6641453901245893,
+        0.005615953981057251,
+        0.00696701874015573
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "pixels_required",
+      "confidence": 0.5648719317425861,
+      "doc_category": "laws_and_regulations",
+      "heuristic_prediction": "text_sufficient",
+      "label": "pixels_required",
+      "ocr_confidence": 0.9127,
+      "page_hash": "509b7d0e1269ea32ba0917c0051d51ec34935931dac62d343dadcca99776e2f7",
+      "pipeline_ms": 971,
+      "primary_modality": "text",
+      "probabilities": [
+        0.088697688333345,
+        0.3172382709955442,
+        0.5648719317425861,
+        0.029192108928524658
+      ],
+      "raw_correct": true,
+      "raw_prediction": "pixels_required",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "pixels_required",
+      "confidence": 0.5753230392765977,
+      "doc_category": "manuals",
+      "heuristic_prediction": "mixed",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.9108,
+      "page_hash": "56321300b12a5a3758fe0dc6a46288446eb3ea459b2b72fe4aaad415c6cb96e3",
+      "pipeline_ms": 957,
+      "primary_modality": "code",
+      "probabilities": [
+        0.42270139359021636,
+        0.5753230392765977,
+        0.0002529359086122487,
+        0.0017226312245737882
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "mixed",
+      "confidence": 0.986512431402983,
+      "doc_category": "scientific_articles",
+      "heuristic_prediction": "mixed",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.8614,
+      "page_hash": "586ed551c82e3d25bd1f4a27ac09ae61a94cf31279ec4bc9dfa835695ed4293c",
+      "pipeline_ms": 918,
+      "primary_modality": "text",
+      "probabilities": [
+        0.013445136932372618,
+        0.986512431402983,
+        2.9906087464956503e-05,
+        1.252557717951216e-05
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.9572168056755642,
+      "doc_category": "laws_and_regulations",
+      "heuristic_prediction": "text_sufficient",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.8979,
+      "page_hash": "5875675a24d3fb03de17b9e6420550e87928b55ce193cd86e9547eb6b45980a0",
+      "pipeline_ms": 1066,
+      "primary_modality": "text",
+      "probabilities": [
+        0.039054161760362,
+        0.9572168056755642,
+        0.0029776391713186483,
+        0.0007513933927551522
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.9779913628690916,
+      "doc_category": "laws_and_regulations",
+      "heuristic_prediction": "text_sufficient",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.9328,
+      "page_hash": "58979a2f6be7998ce6f6f8db41387ff662d4828eedad1aac729eb2b133594ea9",
+      "pipeline_ms": 753,
+      "primary_modality": "text",
+      "probabilities": [
+        0.020911207924610986,
+        0.9779913628690916,
+        0.0003880917556404644,
+        0.0007093374506568528
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.9462556918385947,
+      "doc_category": "manuals",
+      "heuristic_prediction": "text_sufficient",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.8801,
+      "page_hash": "5ae227e6433f858b74dc625b5dd310a10e7a470f8e5a84ed67e254724a6a0069",
+      "pipeline_ms": 821,
+      "primary_modality": "text",
+      "probabilities": [
+        0.052769288929711215,
+        0.9462556918385947,
+        0.000310406651504499,
+        0.0006646125801896244
+      ],
+      "raw_correct": false,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "pixels_required",
+      "confidence": 0.7335582518312133,
+      "doc_category": "patents",
+      "heuristic_prediction": "pixels_required",
+      "label": "pixels_required",
+      "ocr_confidence": null,
+      "page_hash": "66c2bfea4bf7bd66cd3d4c75224e3a4cbdc4283c777ceb787f66b4080c290b2d",
+      "pipeline_ms": 205,
+      "primary_modality": "image",
+      "probabilities": [
+        0.21014022500788462,
+        0.00022087326050137908,
+        0.7335582518312133,
+        0.05608064990040071
+      ],
+      "raw_correct": true,
+      "raw_prediction": "pixels_required",
+      "threshold_prediction": "pixels_required",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "text_sufficient",
+      "confidence": 0.8780421573161642,
+      "doc_category": "laws_and_regulations",
+      "heuristic_prediction": "text_sufficient",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.8826,
+      "page_hash": "6ef09152eb87c61b811b6d65091137bd6564849441da8605521b82fbc7240405",
+      "pipeline_ms": 958,
+      "primary_modality": "text",
+      "probabilities": [
+        0.8780421573161642,
+        0.09195893543376853,
+        0.01826122674423467,
+        0.01173768050583268
+      ],
+      "raw_correct": true,
+      "raw_prediction": "text_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "pixels_required",
+      "confidence": 0.5083530550708077,
+      "doc_category": "manuals",
+      "heuristic_prediction": "mixed",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.8641,
+      "page_hash": "72f69d58db3eca79a0e794a42763dff429522ed9bcb2c5f2ae578019b381d11b",
+      "pipeline_ms": 943,
+      "primary_modality": "code",
+      "probabilities": [
+        0.4848956889379977,
+        0.5083530550708077,
+        0.0011771412823788137,
+        0.0055741147088157065
+      ],
+      "raw_correct": false,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.958809244594981,
+      "doc_category": "manuals",
+      "heuristic_prediction": "structure_sufficient",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.8881,
+      "page_hash": "76318d8070b8b9ef0cca80aae0d1294704bde541e105c8039765b6e520b79507",
+      "pipeline_ms": 937,
+      "primary_modality": "code",
+      "probabilities": [
+        0.040092466960096,
+        0.958809244594981,
+        0.00020813708031971274,
+        0.0008901513646033729
+      ],
+      "raw_correct": false,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "mixed",
+      "confidence": 0.8223358552315049,
+      "doc_category": "laws_and_regulations",
+      "heuristic_prediction": "mixed",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.8138,
+      "page_hash": "76d92a0ae3000f624693d9aea97739dd7b7735d59e2a7fe6c92b6a49204a69cc",
+      "pipeline_ms": 1019,
+      "primary_modality": "text",
+      "probabilities": [
+        0.8223358552315049,
+        0.11629404260877137,
+        0.04979322769669228,
+        0.011576874463031468
+      ],
+      "raw_correct": true,
+      "raw_prediction": "text_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.9571993436071616,
+      "doc_category": "manuals",
+      "heuristic_prediction": "text_sufficient",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.8995,
+      "page_hash": "78deb4b53c863af582dd428c7ebb8e1746efc4ce24138adf7eb3c7f35fed9f70",
+      "pipeline_ms": 648,
+      "primary_modality": "text",
+      "probabilities": [
+        0.04225890451737294,
+        0.9571993436071616,
+        0.0003178337037492915,
+        0.00022391817171613839
+      ],
+      "raw_correct": false,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.9098229732534068,
+      "doc_category": "scientific_articles",
+      "heuristic_prediction": "text_sufficient",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.8971,
+      "page_hash": "7a093a1510d2226cd7816c1ee4beeee10e2ed621de3a6d9fdbe0e492e70d3995",
+      "pipeline_ms": 798,
+      "primary_modality": "text",
+      "probabilities": [
+        0.08293707751757852,
+        0.9098229732534068,
+        0.005897769689026395,
+        0.0013421795399883476
+      ],
+      "raw_correct": false,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.9408168842144663,
+      "doc_category": "government_tenders",
+      "heuristic_prediction": "text_sufficient",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.9195,
+      "page_hash": "7cd6ade7a6131db9522bc6656d374b0b71005d145bd69efdcc1f4f940fc12073",
+      "pipeline_ms": 798,
+      "primary_modality": "text",
+      "probabilities": [
+        0.03036992778369424,
+        0.9408168842144663,
+        0.02678363498452058,
+        0.0020295530173188004
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.8421826893789889,
+      "doc_category": "scientific_articles",
+      "heuristic_prediction": "structure_sufficient",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.8705,
+      "page_hash": "834aefb25d90f2420b37cd7ab2e7b4084d2cb4d81408e21ae1dd36911cae3182",
+      "pipeline_ms": 1526,
+      "primary_modality": "code",
+      "probabilities": [
+        0.06280800902610263,
+        0.8421826893789889,
+        0.08215882567980705,
+        0.01285047591510151
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.8919466878875618,
+      "doc_category": "financial_reports",
+      "heuristic_prediction": "text_sufficient",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.9181,
+      "page_hash": "87c09f1971ff83749b80b0dda6c167f92288ad695a51318883f955033ef1de39",
+      "pipeline_ms": 1217,
+      "primary_modality": "text",
+      "probabilities": [
+        0.10093323642263503,
+        0.8919466878875618,
+        0.007013877980931445,
+        0.00010619770887173486
+      ],
+      "raw_correct": false,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.9920402219935117,
+      "doc_category": "manuals",
+      "heuristic_prediction": "text_sufficient",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.916,
+      "page_hash": "8cdf83e8c56cda9943721943ef8d2958b13d83ea5b94f6dec8e8ab1238e2c50f",
+      "pipeline_ms": 931,
+      "primary_modality": "text",
+      "probabilities": [
+        0.007449221860156855,
+        0.9920402219935117,
+        0.0002815458297597314,
+        0.00022901031657172657
+      ],
+      "raw_correct": false,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "structure_sufficient",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.9889141758809951,
+      "doc_category": "financial_reports",
+      "heuristic_prediction": "text_sufficient",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.809,
+      "page_hash": "90d5d5c28e47e141ef9633e308966dbc5890611e980733f1cd6cb0c70199a80e",
+      "pipeline_ms": 667,
+      "primary_modality": "text",
+      "probabilities": [
+        0.010308030632283024,
+        0.9889141758809951,
+        0.0005194996225624308,
+        0.00025829386415938786
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "pixels_required",
+      "confidence": 0.6198574199713196,
+      "doc_category": "manuals",
+      "heuristic_prediction": "text_sufficient",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.7898,
+      "page_hash": "940beaef3b2e93fc1726d4c64d535a277bce48727ec7f86095eb9c987721f379",
+      "pipeline_ms": 560,
+      "primary_modality": "text",
+      "probabilities": [
+        0.3613744297294862,
+        0.6198574199713196,
+        0.01145175923263764,
+        0.007316391066556517
+      ],
+      "raw_correct": false,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.85565214459268,
+      "doc_category": "manuals",
+      "heuristic_prediction": "structure_sufficient",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.8972,
+      "page_hash": "9d27c343be0f8fd198c353cf8ea174d2af18367055df6de79d91923a8cbeff1f",
+      "pipeline_ms": 821,
+      "primary_modality": "code",
+      "probabilities": [
+        0.1442550413555087,
+        0.85565214459268,
+        1.8656721005083015e-05,
+        7.415733080613786e-05
+      ],
+      "raw_correct": false,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.998731856857359,
+      "doc_category": "financial_reports",
+      "heuristic_prediction": "text_sufficient",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.7861,
+      "page_hash": "a605b386fa29491088068657bbd10a51a28079789e3a0ba460fb5a0f0352af63",
+      "pipeline_ms": 841,
+      "primary_modality": "text",
+      "probabilities": [
+        0.001239572645939336,
+        0.998731856857359,
+        2.518661841182535e-05,
+        3.383878289925982e-06
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "structure_sufficient",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.8346500559365523,
+      "doc_category": "scientific_articles",
+      "heuristic_prediction": "text_sufficient",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.8791,
+      "page_hash": "a7087a8fbd9bdb85f1dce8c41879ce499f7485d88494d927e1ee716a3f370a8e",
+      "pipeline_ms": 783,
+      "primary_modality": "text",
+      "probabilities": [
+        0.1647888093258,
+        0.8346500559365523,
+        0.00011055064170631443,
+        0.00045058409594147706
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.9979663406889056,
+      "doc_category": "financial_reports",
+      "heuristic_prediction": "text_sufficient",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.6848,
+      "page_hash": "a95358efef48e15a8e25fe2ee641efb3600864d31445ff03cd8441f0b3a723b2",
+      "pipeline_ms": 879,
+      "primary_modality": "text",
+      "probabilities": [
+        0.0017794924597887994,
+        0.9979663406889056,
+        0.00023034012246029307,
+        2.3826728845428853e-05
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "structure_sufficient",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "pixels_required",
+      "confidence": 0.9015199005714379,
+      "doc_category": "manuals",
+      "heuristic_prediction": "pixels_required",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.6251,
+      "page_hash": "a97f8365f00385fc5cd688c8f23c9a424f77b5a88791a48464f0fe1553415b79",
+      "pipeline_ms": 664,
+      "primary_modality": "text",
+      "probabilities": [
+        0.060608003605126255,
+        0.9015199005714379,
+        0.03057857351478884,
+        0.007293522308646971
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "text_sufficient",
+      "confidence": 0.9469661636807766,
+      "doc_category": "laws_and_regulations",
+      "heuristic_prediction": "text_sufficient",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.8893,
+      "page_hash": "aa6ab783f94cdf57b4a82c6dc28ee08e3de39cc1cfae542ca69834cfa90233cb",
+      "pipeline_ms": 1057,
+      "primary_modality": "text",
+      "probabilities": [
+        0.9469661636807766,
+        0.03851271834592728,
+        0.008980014233707746,
+        0.00554110373958845
+      ],
+      "raw_correct": true,
+      "raw_prediction": "text_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.7273309055434773,
+      "doc_category": "scientific_articles",
+      "heuristic_prediction": "text_sufficient",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.9079,
+      "page_hash": "aaf6c9d6f955bd39a42cbd708d984593bfdd809e6cec5ba5df611d6d766fe0c0",
+      "pipeline_ms": 1670,
+      "primary_modality": "text",
+      "probabilities": [
+        0.05460186624667124,
+        0.7273309055434773,
+        0.21627990118190893,
+        0.0017873270279425606
+      ],
+      "raw_correct": false,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "mixed",
+      "confidence": 0.8436221152564591,
+      "doc_category": "laws_and_regulations",
+      "heuristic_prediction": "mixed",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.8492,
+      "page_hash": "b09eb8c5b0cfba6aad337bc1ea7db63c97acd756323cfb8e5d7faf52d2e80148",
+      "pipeline_ms": 700,
+      "primary_modality": "text",
+      "probabilities": [
+        0.1545443330162226,
+        0.8436221152564591,
+        0.0009879879152881277,
+        0.0008455638120300922
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "mixed",
+      "confidence": 0.7730684111247421,
+      "doc_category": "manuals",
+      "heuristic_prediction": "mixed",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.8606,
+      "page_hash": "b0ff80518ba34e7e6c512278feb09bf7334326672fc85cb0ee6a15f59e7d783f",
+      "pipeline_ms": 697,
+      "primary_modality": "code",
+      "probabilities": [
+        0.22186437635263115,
+        0.7730684111247421,
+        0.002563194736615291,
+        0.0025040177860115105
+      ],
+      "raw_correct": false,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.9773408566024488,
+      "doc_category": "scientific_articles",
+      "heuristic_prediction": "text_sufficient",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.8055,
+      "page_hash": "b4e0ced9b2bdbae92b76479b0540d8f6fd200548dcab7c448f978d64708347c2",
+      "pipeline_ms": 904,
+      "primary_modality": "text",
+      "probabilities": [
+        0.02172447929686857,
+        0.9773408566024488,
+        0.0004527135302362164,
+        0.00048195057044643947
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "mixed",
+      "confidence": 0.6586733556990755,
+      "doc_category": "manuals",
+      "heuristic_prediction": "mixed",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.8758,
+      "page_hash": "b5662d399639f71a6e9f5c3fa68662481140e50311f251ff2ffa190e0436f5b3",
+      "pipeline_ms": 961,
+      "primary_modality": "code",
+      "probabilities": [
+        0.3404328458649245,
+        0.6586733556990755,
+        0.00030757609563824873,
+        0.0005862223403618718
+      ],
+      "raw_correct": false,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.87431559403299,
+      "doc_category": "manuals",
+      "heuristic_prediction": "structure_sufficient",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.9129,
+      "page_hash": "b6a1406561ff651e204beda8b9cb7bf7f28989c1f47efd946b24d68373857776",
+      "pipeline_ms": 1138,
+      "primary_modality": "code",
+      "probabilities": [
+        0.12519794697357273,
+        0.87431559403299,
+        0.00012397776143292536,
+        0.00036248123200438993
+      ],
+      "raw_correct": false,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "text_sufficient",
+      "confidence": 0.9712689658174256,
+      "doc_category": "financial_reports",
+      "heuristic_prediction": "text_sufficient",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.9298,
+      "page_hash": "ba079db5a4cf4dff090025f6287105d8e00e0e6d1f065b02d7ddb0031575d33f",
+      "pipeline_ms": 2318,
+      "primary_modality": "text",
+      "probabilities": [
+        0.9712689658174256,
+        0.02866948344074906,
+        4.3494909895622844e-05,
+        1.8055831929788624e-05
+      ],
+      "raw_correct": true,
+      "raw_prediction": "text_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "pixels_required",
+      "confidence": 0.9786143040984784,
+      "doc_category": "financial_reports",
+      "heuristic_prediction": "pixels_required",
+      "label": "text_sufficient",
+      "ocr_confidence": null,
+      "page_hash": "bbb9de4b7172bed27b52bd42341f0f7f78069e0f7ffbc2e835b06e387df4fede",
+      "pipeline_ms": 874,
+      "primary_modality": "image",
+      "probabilities": [
+        0.9786143040984784,
+        8.343994204456152e-05,
+        0.01674755863990854,
+        0.004554697319568555
+      ],
+      "raw_correct": true,
+      "raw_prediction": "text_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "pixels_required",
+      "confidence": 0.4469855612384789,
+      "doc_category": "patents",
+      "heuristic_prediction": "text_sufficient",
+      "label": "pixels_required",
+      "ocr_confidence": 0.8104,
+      "page_hash": "bbeb62e3f36dad16786caed139099c974b92d64734c25b4cca903531813a7d48",
+      "pipeline_ms": 880,
+      "primary_modality": "text",
+      "probabilities": [
+        0.133969836658635,
+        0.1035531273368269,
+        0.4469855612384789,
+        0.31549147476605927
+      ],
+      "raw_correct": true,
+      "raw_prediction": "pixels_required",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "text_sufficient",
+      "confidence": 0.6954065307122148,
+      "doc_category": "manuals",
+      "heuristic_prediction": "text_sufficient",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.9223,
+      "page_hash": "bf5c935b5c98d481bf87af835628435c7dffdbb4d718c91e630c43dc2439bf71",
+      "pipeline_ms": 762,
+      "primary_modality": "text",
+      "probabilities": [
+        0.6954065307122148,
+        0.3040123330786443,
+        0.0002494865152918923,
+        0.0003316496938489763
+      ],
+      "raw_correct": true,
+      "raw_prediction": "text_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "pixels_required",
+      "confidence": 0.5625274923299821,
+      "doc_category": "laws_and_regulations",
+      "heuristic_prediction": "structure_sufficient",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.9256,
+      "page_hash": "c257774213c2de85e2e9ff94ef6147a0dc32994dce15694258ac6e685894793f",
+      "pipeline_ms": 1803,
+      "primary_modality": "code",
+      "probabilities": [
+        0.3994307509848858,
+        0.5625274923299821,
+        0.03722213430610743,
+        0.0008196223790247226
+      ],
+      "raw_correct": true,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "pixels_required",
+      "confidence": 0.9913658684463875,
+      "doc_category": "laws_and_regulations",
+      "heuristic_prediction": "pixels_required",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.3136,
+      "page_hash": "c4d91c9991137ccf7ca7cff1650baf46084df17dee92fde715beac99b8923195",
+      "pipeline_ms": 1268,
+      "primary_modality": "text",
+      "probabilities": [
+        0.00822566053214526,
+        0.9913658684463875,
+        0.00020427181176747958,
+        0.00020419920969969979
+      ],
+      "raw_correct": false,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "structure_sufficient",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "mixed",
+      "confidence": 0.7338162141401541,
+      "doc_category": "patents",
+      "heuristic_prediction": "pixels_required",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.3841,
+      "page_hash": "cfa9e5153aa4b065b686324632c07cd5b9a5353b480ac0bccc4f2982c06ee89f",
+      "pipeline_ms": 1111,
+      "primary_modality": "text",
+      "probabilities": [
+        0.012348447749071012,
+        0.18656630528032095,
+        0.06726903283045407,
+        0.7338162141401541
+      ],
+      "raw_correct": false,
+      "raw_prediction": "mixed",
+      "threshold_prediction": "pixels_required",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "mixed",
+      "confidence": 0.6683803994633658,
+      "doc_category": "patents",
+      "heuristic_prediction": "mixed",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.9343,
+      "page_hash": "cfb02a8d4b39fc81d8181f08b5435a8a225833a1215aa3ad85161bb2feabf339",
+      "pipeline_ms": 1263,
+      "primary_modality": "text",
+      "probabilities": [
+        0.6683803994633658,
+        0.33143996803087905,
+        9.342823587563544e-05,
+        8.620426987959692e-05
+      ],
+      "raw_correct": true,
+      "raw_prediction": "text_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "pixels_required",
+      "confidence": 0.8575624367148494,
+      "doc_category": "laws_and_regulations",
+      "heuristic_prediction": "mixed",
+      "label": "pixels_required",
+      "ocr_confidence": 0.9219,
+      "page_hash": "d5d10c344d6fd2fd8efbd36bf2489e9f97400c58161c08d597e4b056ca5509a7",
+      "pipeline_ms": 1645,
+      "primary_modality": "text",
+      "probabilities": [
+        0.12776964691290416,
+        0.01160026812489057,
+        0.8575624367148494,
+        0.0030676482473558048
+      ],
+      "raw_correct": true,
+      "raw_prediction": "pixels_required",
+      "threshold_prediction": "pixels_required",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "pixels_required",
+      "confidence": 0.6184496299880727,
+      "doc_category": "patents",
+      "heuristic_prediction": "mixed",
+      "label": "pixels_required",
+      "ocr_confidence": 0.7594,
+      "page_hash": "d7e7946da7d76df81402b9137185835fa72c67e2f39369cf1374ada4c8c43c23",
+      "pipeline_ms": 1589,
+      "primary_modality": "text",
+      "probabilities": [
+        0.31209161938892666,
+        0.003566550031652476,
+        0.6184496299880727,
+        0.06589220059134822
+      ],
+      "raw_correct": true,
+      "raw_prediction": "pixels_required",
+      "threshold_prediction": "pixels_required",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "mixed",
+      "confidence": 0.929098035902027,
+      "doc_category": "manuals",
+      "heuristic_prediction": "mixed",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.8884,
+      "page_hash": "dc38ea17fc823a63c55332a9e91cf72240963aba532d34aa6b91298a00829931",
+      "pipeline_ms": 1184,
+      "primary_modality": "mixed",
+      "probabilities": [
+        0.0696790123341675,
+        0.929098035902027,
+        0.000377892080343945,
+        0.0008450596834616603
+      ],
+      "raw_correct": false,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "mixed",
+      "confidence": 0.6842545807431455,
+      "doc_category": "manuals",
+      "heuristic_prediction": "mixed",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.8739,
+      "page_hash": "ec2330f403b735c37ebeb6997bc351e05539bacdbb91e302cf77a57a5b563410",
+      "pipeline_ms": 1332,
+      "primary_modality": "code",
+      "probabilities": [
+        0.6842545807431455,
+        0.3097083176868879,
+        0.0004667378663400515,
+        0.005570363703626603
+      ],
+      "raw_correct": true,
+      "raw_prediction": "text_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "pixels_required",
+      "confidence": 0.9985975382700226,
+      "doc_category": "patents",
+      "heuristic_prediction": "pixels_required",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.3345,
+      "page_hash": "f6c67b39ea024619785614d217d83854a428057a9d4f9bf87da8e67f61857436",
+      "pipeline_ms": 1657,
+      "primary_modality": "text",
+      "probabilities": [
+        0.9985975382700226,
+        0.001398430173979206,
+        1.3239255108819116e-06,
+        2.707630487282669e-06
+      ],
+      "raw_correct": true,
+      "raw_prediction": "text_sufficient",
+      "threshold_prediction": "text_sufficient",
+      "visual_required": true
+    },
+    {
+      "composed_prediction": "text_sufficient",
+      "confidence": 0.9267030491277616,
+      "doc_category": "financial_reports",
+      "heuristic_prediction": "text_sufficient",
+      "label": "structure_sufficient",
+      "ocr_confidence": 0.8439,
+      "page_hash": "fbd76598089cc180f2dbc0f32e2ac76587d1f1d0e528d201a3f17aa46936ab00",
+      "pipeline_ms": 1802,
+      "primary_modality": "text",
+      "probabilities": [
+        0.9267030491277616,
+        0.04399019019793282,
+        0.003054151754867059,
+        0.026252608919438498
+      ],
+      "raw_correct": false,
+      "raw_prediction": "text_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    },
+    {
+      "composed_prediction": "structure_sufficient",
+      "confidence": 0.7579114014356847,
+      "doc_category": "manuals",
+      "heuristic_prediction": "text_sufficient",
+      "label": "text_sufficient",
+      "ocr_confidence": 0.8407,
+      "page_hash": "fcdcd04e32ce15e205717497ebb7bdc70206d5ec174ae336a1e15aa0302bbef5",
+      "pipeline_ms": 949,
+      "primary_modality": "text",
+      "probabilities": [
+        0.13791643971166112,
+        0.7579114014356847,
+        0.0973420459955033,
+        0.006830112857150831
+      ],
+      "raw_correct": false,
+      "raw_prediction": "structure_sufficient",
+      "threshold_prediction": "pixels_required",
+      "visual_required": false
+    }
+  ],
+  "split": "validation",
+  "status": "historical diagnostic; validation supports threshold analysis; test split previously consulted and not an untouched final evaluation",
+  "synthetic_degradation_sensitivity": {
+    "native_resolution_jpeg_q40": {
+      "agreement_with_original_count": 61,
+      "agreement_with_original_rate": 0.9682539682539683,
+      "raw_model_metrics": {
+        "accuracy": 0.6190476190476191,
+        "combined_critical_errors": {
+          "count": 3,
+          "rate": 0.3333333333333333,
+          "support": 9
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              12,
+              17,
+              1,
+              0
+            ],
+            [
+              2,
+              21,
+              0,
+              1
+            ],
+            [
+              1,
+              0,
+              6,
+              0
+            ],
+            [
+              2,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 2,
+            "rate": 1.0,
+            "support": 2
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 1,
+            "rate": 0.14285714285714285,
+            "support": 7
+          }
+        },
+        "macro_f1": 0.5113001274634768,
+        "macro_precision": 0.5289141972578505,
+        "macro_recall": 0.5330357142857143,
+        "per_class": {
+          "mixed": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 2
+          },
+          "pixels_required": {
+            "f1": 0.8571428571428571,
+            "precision": 0.8571428571428571,
+            "recall": 0.8571428571428571,
+            "support": 7
+          },
+          "structure_sufficient": {
+            "f1": 0.6774193548387096,
+            "precision": 0.5526315789473685,
+            "recall": 0.875,
+            "support": 24
+          },
+          "text_sufficient": {
+            "f1": 0.5106382978723405,
+            "precision": 0.7058823529411765,
+            "recall": 0.4,
+            "support": 30
+          }
+        },
+        "pixel_preservation": {
+          "count": 8,
+          "rate": 0.12698412698412698,
+          "unnecessary_count": 2,
+          "unnecessary_support": 54
+        },
+        "sample_count": 63
+      },
+      "sample_count": 63
+    },
+    "quarter_resolution_jpeg_q40": {
+      "agreement_with_original_count": 53,
+      "agreement_with_original_rate": 0.8412698412698413,
+      "raw_model_metrics": {
+        "accuracy": 0.6031746031746031,
+        "combined_critical_errors": {
+          "count": 4,
+          "rate": 0.4444444444444444,
+          "support": 9
+        },
+        "confusion_matrix": {
+          "labels": [
+            "text_sufficient",
+            "structure_sufficient",
+            "pixels_required",
+            "mixed"
+          ],
+          "rows_true_columns_predicted": [
+            [
+              14,
+              14,
+              2,
+              0
+            ],
+            [
+              5,
+              19,
+              0,
+              0
+            ],
+            [
+              1,
+              1,
+              5,
+              0
+            ],
+            [
+              2,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        "critical_errors": {
+          "mixed": {
+            "false_pixel_discard_count": 2,
+            "rate": 1.0,
+            "support": 2
+          },
+          "pixels_required": {
+            "false_pixel_discard_count": 2,
+            "rate": 0.2857142857142857,
+            "support": 7
+          }
+        },
+        "macro_f1": 0.4769799166350891,
+        "macro_precision": 0.47736822001527884,
+        "macro_recall": 0.49315476190476193,
+        "per_class": {
+          "mixed": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 2
+          },
+          "pixels_required": {
+            "f1": 0.7142857142857143,
+            "precision": 0.7142857142857143,
+            "recall": 0.7142857142857143,
+            "support": 7
+          },
+          "structure_sufficient": {
+            "f1": 0.6551724137931034,
+            "precision": 0.5588235294117647,
+            "recall": 0.7916666666666666,
+            "support": 24
+          },
+          "text_sufficient": {
+            "f1": 0.5384615384615385,
+            "precision": 0.6363636363636364,
+            "recall": 0.4666666666666667,
+            "support": 30
+          }
+        },
+        "pixel_preservation": {
+          "count": 7,
+          "rate": 0.1111111111111111,
+          "unnecessary_count": 2,
+          "unnecessary_support": 54
+        },
+        "sample_count": 63
+      },
+      "sample_count": 63
+    }
+  },
+  "validation_threshold_sweep": [
+    {
+      "abstained_count": 0,
+      "abstention_rate": 0.0,
+      "combined_critical_errors": {
+        "count": 3,
+        "rate": 0.3333333333333333,
+        "support": 9
+      },
+      "critical_errors": {
+        "mixed": {
+          "false_pixel_discard_count": 2,
+          "rate": 1.0,
+          "support": 2
+        },
+        "pixels_required": {
+          "false_pixel_discard_count": 1,
+          "rate": 0.14285714285714285,
+          "support": 7
+        }
+      },
+      "preserved_count": 7,
+      "preserved_rate": 0.1111111111111111,
+      "threshold": 0.0,
+      "unnecessary_preservation_rate": 0.018518518518518517,
+      "unnecessary_preserves": 1
+    },
+    {
+      "abstained_count": 2,
+      "abstention_rate": 0.031746031746031744,
+      "combined_critical_errors": {
+        "count": 3,
+        "rate": 0.3333333333333333,
+        "support": 9
+      },
+      "critical_errors": {
+        "mixed": {
+          "false_pixel_discard_count": 2,
+          "rate": 1.0,
+          "support": 2
+        },
+        "pixels_required": {
+          "false_pixel_discard_count": 1,
+          "rate": 0.14285714285714285,
+          "support": 7
+        }
+      },
+      "preserved_count": 8,
+      "preserved_rate": 0.12698412698412698,
+      "threshold": 0.5,
+      "unnecessary_preservation_rate": 0.037037037037037035,
+      "unnecessary_preserves": 2
+    },
+    {
+      "abstained_count": 10,
+      "abstention_rate": 0.15873015873015872,
+      "combined_critical_errors": {
+        "count": 3,
+        "rate": 0.3333333333333333,
+        "support": 9
+      },
+      "critical_errors": {
+        "mixed": {
+          "false_pixel_discard_count": 2,
+          "rate": 1.0,
+          "support": 2
+        },
+        "pixels_required": {
+          "false_pixel_discard_count": 1,
+          "rate": 0.14285714285714285,
+          "support": 7
+        }
+      },
+      "preserved_count": 14,
+      "preserved_rate": 0.2222222222222222,
+      "threshold": 0.65,
+      "unnecessary_preservation_rate": 0.14814814814814814,
+      "unnecessary_preserves": 8
+    },
+    {
+      "abstained_count": 20,
+      "abstention_rate": 0.31746031746031744,
+      "combined_critical_errors": {
+        "count": 3,
+        "rate": 0.3333333333333333,
+        "support": 9
+      },
+      "critical_errors": {
+        "mixed": {
+          "false_pixel_discard_count": 2,
+          "rate": 1.0,
+          "support": 2
+        },
+        "pixels_required": {
+          "false_pixel_discard_count": 1,
+          "rate": 0.14285714285714285,
+          "support": 7
+        }
+      },
+      "preserved_count": 22,
+      "preserved_rate": 0.3492063492063492,
+      "threshold": 0.75,
+      "unnecessary_preservation_rate": 0.2962962962962963,
+      "unnecessary_preserves": 16
+    },
+    {
+      "abstained_count": 28,
+      "abstention_rate": 0.4444444444444444,
+      "combined_critical_errors": {
+        "count": 3,
+        "rate": 0.3333333333333333,
+        "support": 9
+      },
+      "critical_errors": {
+        "mixed": {
+          "false_pixel_discard_count": 2,
+          "rate": 1.0,
+          "support": 2
+        },
+        "pixels_required": {
+          "false_pixel_discard_count": 1,
+          "rate": 0.14285714285714285,
+          "support": 7
+        }
+      },
+      "preserved_count": 29,
+      "preserved_rate": 0.4603174603174603,
+      "threshold": 0.85,
+      "unnecessary_preservation_rate": 0.42592592592592593,
+      "unnecessary_preserves": 23
+    },
+    {
+      "abstained_count": 33,
+      "abstention_rate": 0.5238095238095238,
+      "combined_critical_errors": {
+        "count": 3,
+        "rate": 0.3333333333333333,
+        "support": 9
+      },
+      "critical_errors": {
+        "mixed": {
+          "false_pixel_discard_count": 2,
+          "rate": 1.0,
+          "support": 2
+        },
+        "pixels_required": {
+          "false_pixel_discard_count": 1,
+          "rate": 0.14285714285714285,
+          "support": 7
+        }
+      },
+      "preserved_count": 33,
+      "preserved_rate": 0.5238095238095238,
+      "threshold": 0.9,
+      "unnecessary_preservation_rate": 0.5,
+      "unnecessary_preserves": 27
+    },
+    {
+      "abstained_count": 41,
+      "abstention_rate": 0.6507936507936508,
+      "combined_critical_errors": {
+        "count": 3,
+        "rate": 0.3333333333333333,
+        "support": 9
+      },
+      "critical_errors": {
+        "mixed": {
+          "false_pixel_discard_count": 2,
+          "rate": 1.0,
+          "support": 2
+        },
+        "pixels_required": {
+          "false_pixel_discard_count": 1,
+          "rate": 0.14285714285714285,
+          "support": 7
+        }
+      },
+      "preserved_count": 41,
+      "preserved_rate": 0.6507936507936508,
+      "threshold": 0.95,
+      "unnecessary_preservation_rate": 0.6481481481481481,
+      "unnecessary_preserves": 35
+    },
+    {
+      "abstained_count": 57,
+      "abstention_rate": 0.9047619047619048,
+      "combined_critical_errors": {
+        "count": 0,
+        "rate": 0.0,
+        "support": 9
+      },
+      "critical_errors": {
+        "mixed": {
+          "false_pixel_discard_count": 0,
+          "rate": 0.0,
+          "support": 2
+        },
+        "pixels_required": {
+          "false_pixel_discard_count": 0,
+          "rate": 0.0,
+          "support": 7
+        }
+      },
+      "preserved_count": 57,
+      "preserved_rate": 0.9047619047619048,
+      "threshold": 0.99,
+      "unnecessary_preservation_rate": 0.8888888888888888,
+      "unnecessary_preserves": 48
+    }
+  ]
+}

@@ -21,6 +21,7 @@ from services.perception.models import Modalities, OCRResult
 from services.perception.representation.selector import (
     HeuristicRepresentationSelector,
     RepresentationSelector,
+    preserve_pixels_on_failure,
 )
 
 logger = logging.getLogger(__name__)
@@ -204,7 +205,15 @@ class MobileNetV3SmallSelector(RepresentationSelector):
 
     def score_image(self, image_bytes: bytes) -> list[float]:
         """Return class probabilities; exposed for reproducible offline benchmarks."""
-        return self._predict(image_bytes)
+        probabilities = self._predict(image_bytes)
+        if len(probabilities) != len(REPRESENTATION_CLASSES):
+            raise ValueError("model returned an unexpected number of class probabilities")
+        if any(not math.isfinite(value) or value < 0 for value in probabilities):
+            raise ValueError("model returned a non-finite or negative class probability")
+        total = sum(probabilities)
+        if not math.isfinite(total) or total <= 0:
+            raise ValueError("model returned invalid class probabilities")
+        return [value / total for value in probabilities]
 
     def select(
         self,
@@ -224,10 +233,10 @@ class MobileNetV3SmallSelector(RepresentationSelector):
             image_bytes,
         )
         try:
-            probabilities = self._predict(image_bytes)
+            probabilities = self.score_image(image_bytes)
         except Exception as exc:
             logger.warning("representation_model_unavailable_using_heuristic error=%s", exc)
-            return heuristic
+            return preserve_pixels_on_failure(heuristic)
 
         confidence = max(probabilities)
         predicted = REPRESENTATION_CLASSES[probabilities.index(confidence)]

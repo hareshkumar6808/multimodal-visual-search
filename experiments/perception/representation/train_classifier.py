@@ -20,12 +20,11 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import models, transforms  # type: ignore[import-untyped]
 
-from contracts.models import RepresentationKind
-
 ROOT = Path(__file__).resolve().parents[3]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from contracts.models import RepresentationKind  # noqa: E402
 from services.perception.representation.mobilenet import (  # noqa: E402
     REPRESENTATION_CLASSES,
 )
@@ -133,6 +132,8 @@ def train(
     epochs: int,
     batch_size: int,
     seed: int,
+    class_weighting: bool = True,
+    evaluate_test: bool = True,
 ) -> dict[str, Any]:
     random.seed(seed)
     torch.manual_seed(seed)
@@ -182,7 +183,7 @@ def train(
         dtype=torch.float32,
         device=device,
     )
-    criterion = nn.CrossEntropyLoss(weight=weights_tensor)
+    criterion = nn.CrossEntropyLoss(weight=weights_tensor if class_weighting else None)
     optimizer = torch.optim.AdamW(model.parameters(), lr=2e-4, weight_decay=1e-4)
 
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
@@ -226,7 +227,7 @@ def train(
 
     model.load_state_dict(best_state, strict=True)
     model.eval()
-    test_metrics = _evaluate(model, test_loader, device)
+    test_metrics = _evaluate(model, test_loader, device) if evaluate_test else None
     checkpoint = {
         "format_version": 1,
         "architecture": "mobilenet_v3_small",
@@ -244,6 +245,10 @@ def train(
         "architecture": "MobileNetV3-Small",
         "seed": seed,
         "requested_epochs": epochs,
+        "class_weighted_loss": class_weighting,
+        "input_size": [224, 224],
+        "augmentation": "none",
+        "test_evaluation": "completed" if evaluate_test else "not run; validation-only experiment",
         "best_epoch": best_epoch,
         "training_seconds": training_seconds,
         "device": str(device),
@@ -278,6 +283,11 @@ def main() -> None:
         default=Path("artifacts/perception/dataset/doclaynet-small/manifest.jsonl"),
     )
     parser.add_argument(
+        "--validation-only",
+        action="store_true",
+        help="do not evaluate the held-out test split; use for model ablations",
+    )
+    parser.add_argument(
         "--checkpoint",
         type=Path,
         default=Path("models/perception/mobilenet_v3_small.pth"),
@@ -288,6 +298,12 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--seed", type=int, default=1729)
+    parser.add_argument(
+        "--class-weighting",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="use inverse-frequency class-weighted cross entropy",
+    )
     args = parser.parse_args()
     report = train(
         args.manifest,
@@ -296,6 +312,8 @@ def main() -> None:
         args.epochs,
         args.batch_size,
         args.seed,
+        args.class_weighting,
+        not args.validation_only,
     )
     print(json.dumps(report, indent=2, sort_keys=True))
 

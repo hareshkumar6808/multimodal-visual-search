@@ -49,3 +49,17 @@ For 20 held-out images over 30 repeats, ONNX Runtime CPU matched PyTorch CPU arg
 On 20 held-out images with three paired repetitions using local Tesseract and ONNX, sequential OCR then model had median **1,432.61 ms** (p95 **2,473.91 ms**); concurrent OCR/model had median **1,546.28 ms** (p95 **2,544.88 ms**), a sequential/parallel ratio of **0.926**. Parallel execution was slower in this run and is not used. OCR dominated: OCR-only median was 1,415.15 ms and model selector median was 19.82 ms.
 
 These are small, single-machine measurements, not production benchmarks. Re-run the scripts to assess another machine or runtime. No quantization or broad hyperparameter search was performed.
+
+## Research audit and integration limits
+
+The controlled comparison, validation-only class-weighting ablation, failure inspection, confidence-threshold sweep, degradation check, dataset-source review, and routing limitations are recorded in [`RESEARCH_REPORT.md`](RESEARCH_REPORT.md), with hypotheses and source/license notes in [`RESEARCH_PLAN.md`](RESEARCH_PLAN.md) and a structured log in [`experiment_log.json`](experiment_log.json). The Stage 2 selector never receives the request query and the orchestrator does not consume its representation output; keep predictions advisory and do not use them as permission to omit original pixels. The historical test split is now exposed and must not be presented as an untouched final holdout.
+
+Reproduce policy/calibration and systems evidence with:
+
+```powershell
+python experiments/perception/representation/evaluate_policy.py --split validation --output models/perception/research_validation.json
+python experiments/perception/representation/evaluate_policy.py --split test --output models/perception/research_test_diagnostic.json
+python experiments/perception/representation/benchmark_runtime.py --repeats 100 --samples 20 --output models/perception/runtime_benchmark.json
+```
+
+The test command is for a historical diagnostic only. Validation data supports exploratory comparisons but remains too small and proxy-labeled to establish deployment safety. The original class-weighted checkpoint is retained: a single-seed unweighted loss ablation did not reduce critical errors under the composed selector.

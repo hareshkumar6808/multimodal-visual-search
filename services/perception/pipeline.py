@@ -19,6 +19,7 @@ from services.perception.representation import (
     HeuristicRepresentationSelector,
     MobileNetV3SmallSelector,
     RepresentationSelector,
+    preserve_pixels_on_failure,
 )
 from services.perception.visual_dependency import evaluate_visual_required
 
@@ -102,9 +103,8 @@ class PerceptionPipeline:
             objects,
         )
 
-        # The selector is an injectable interface for future model-backed
-        # implementations. Any model/load failure falls back to the conservative
-        # local heuristic and retains the original pixels when uncertain.
+        # The learned output is an injectable, advisory classification. On an
+        # exception the heuristic fallback explicitly preserves original pixels.
         representation_start = time.perf_counter()
         try:
             representation = self.representation_selector.select(
@@ -117,7 +117,7 @@ class PerceptionPipeline:
             )
         except Exception:
             logger.exception("representation_selection_failed_using_heuristic")
-            representation = self._fallback_selector.select(
+            fallback = self._fallback_selector.select(
                 modalities,
                 primary_modality,
                 overall_confidence,
@@ -125,6 +125,7 @@ class PerceptionPipeline:
                 visual_required,
                 image_bytes,
             )
+            representation = preserve_pixels_on_failure(fallback)
         representation_ms = int((time.perf_counter() - representation_start) * 1000)
 
         total_ms = int((time.perf_counter() - start_time) * 1000)

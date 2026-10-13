@@ -112,6 +112,8 @@ def test_missing_model_falls_back_without_runtime_download(tmp_path: Path) -> No
     )
 
     assert result.source == "heuristic"
+    assert result.kind == "pixels_required"
+    assert result.pixel_dependency_prior == 1.0
     assert result.model is None
     assert result.local_capabilities["ml_model"] is False
     assert selector._load_attempted is True
@@ -176,7 +178,9 @@ def test_model_probabilities_normalize_and_checkpoint_loads_once(
     assert second_selector._model is model
 
 
-def test_onnx_model_normalizes_and_runs_without_network(tmp_path: Path) -> None:
+def test_onnx_model_normalizes_and_runs_without_network(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     ort = pytest.importorskip("onnxruntime")
     root = Path(__file__).resolve().parents[2]
     onnx_model = root / "models/perception/mobilenet_v3_small.onnx"
@@ -184,6 +188,11 @@ def test_onnx_model_normalizes_and_runs_without_network(tmp_path: Path) -> None:
         pytest.skip("validated ONNX artifact is not present")
     local_model = tmp_path / "local-only.onnx"
     local_model.write_bytes(onnx_model.read_bytes())
+
+    def no_network(*args: object, **kwargs: object) -> None:
+        raise AssertionError("runtime inference must not access the network")
+
+    monkeypatch.setattr("urllib.request.urlopen", no_network)
     selector = MobileNetV3SmallSelector(
         tmp_path / "missing.pth", onnx_path=local_model
     )
@@ -195,6 +204,105 @@ def test_onnx_model_normalizes_and_runs_without_network(tmp_path: Path) -> None:
     assert selector.model_available is True
     assert selector._backend == "onnxruntime"
     assert isinstance(selector._model, ort.InferenceSession)
+
+
+@pytest.mark.parametrize(
+    "probabilities",
+    [
+        [float("nan"), 0.0, 0.0, 0.0],
+        [float("inf"), 0.0, 0.0, 0.0],
+        [-0.1, 0.5, 0.3, 0.3],
+        [0.0, 0.0, 0.0, 0.0],
+        [0.5, 0.5],
+    ],
+)
+def test_invalid_model_probabilities_fall_back_to_heuristic(
+    monkeypatch: pytest.MonkeyPatch, probabilities: list[float]
+) -> None:
+    selector = MobileNetV3SmallSelector("unused.pth", onnx_path="unused.onnx")
+    monkeypatch.setattr(selector, "_predict", lambda _image: probabilities)
+
+    result = selector.select(
+        Modalities(text=0.8),
+        "text",
+        0.9,
+        OCRResult(text="Readable content", confidence=0.9),
+        False,
+        b"image",
+    )
+
+    assert result.source == "heuristic"
+    assert result.kind == "pixels_required"
+    assert result.pixel_dependency_prior == 1.0
+
+
+def test_high_model_confidence_conflicting_with_visual_evidence_keeps_pixels(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    selector = MobileNetV3SmallSelector("unused.pth", onnx_path="unused.onnx")
+    monkeypatch.setattr(selector, "_predict", lambda _image: [0.99, 0.002, 0.006, 0.002])
+
+    result = selector.select(
+        Modalities(text=0.8),
+        "text",
+        0.9,
+        OCRResult(text="Readable content", confidence=0.9),
+        True,
+        b"pixels carry additional visual information",
+    )
+
+    assert result.kind == "mixed"
+    assert result.confidence == pytest.approx(0.99)
+    assert result.source.startswith("mobilenet_v3_small:")
+
+
+def test_preprocessing_failure_uses_pixel_preserving_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    selector = MobileNetV3SmallSelector("unused.pth", onnx_path="unused.onnx")
+
+    def fail_preprocessing(_image: bytes) -> list[float]:
+        raise ValueError("invalid image bytes")
+
+    monkeypatch.setattr(selector, "_predict", fail_preprocessing)
+    result = selector.select(
+        Modalities(text=0.8),
+        "text",
+        0.9,
+        OCRResult(text="Readable content", confidence=0.9),
+        False,
+        b"corrupted image",
+    )
+
+    assert result.kind == "pixels_required"
+    assert result.pixel_dependency_prior == 1.0
+    assert result.source == "heuristic"
+
+
+def test_torch_and_onnx_probabilities_match_on_local_fixture(tmp_path: Path) -> None:
+    pytest.importorskip("torch")
+    pytest.importorskip("torchvision")
+    pytest.importorskip("onnxruntime")
+    root = Path(__file__).resolve().parents[2]
+    checkpoint = root / "models/perception/mobilenet_v3_small.pth"
+    onnx_model = root / "models/perception/mobilenet_v3_small.onnx"
+    if not checkpoint.is_file() or not onnx_model.is_file():
+        pytest.skip("local PyTorch and ONNX artifacts are required")
+    torch_selector = MobileNetV3SmallSelector(
+        checkpoint, onnx_path=tmp_path / "missing.onnx"
+    )
+    onnx_selector = MobileNetV3SmallSelector(
+        tmp_path / "missing.pth", onnx_path=onnx_model
+    )
+    image = make_png()
+
+    torch_probabilities = torch_selector.score_image(image)
+    onnx_probabilities = onnx_selector.score_image(image)
+
+    assert torch_probabilities.index(max(torch_probabilities)) == onnx_probabilities.index(
+        max(onnx_probabilities)
+    )
+    assert onnx_probabilities == pytest.approx(torch_probabilities, abs=1e-4)
 
 
 def test_uncertain_model_prediction_preserves_pixels(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -230,6 +338,7 @@ def test_unavailable_model_uses_heuristic_and_emits_v02() -> None:
     assert mir.mir_version == "0.2"
     assert mir.representation is not None
     assert mir.representation.source == "heuristic"
+    assert mir.representation.kind == "pixels_required"
     assert pipeline.last_telemetry["representation_ms"] >= 0
 
 

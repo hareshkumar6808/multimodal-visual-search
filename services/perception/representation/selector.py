@@ -13,6 +13,13 @@ from contracts.models import RepresentationInfo, RepresentationKind, Representat
 from services.perception.models import Modalities, OCRResult
 
 
+def preserve_pixels_on_failure(info: RepresentationInfo) -> RepresentationInfo:
+    """Keep source pixels available when learned inference cannot be trusted."""
+    return info.model_copy(
+        update={"kind": "pixels_required", "pixel_dependency_prior": 1.0}
+    )
+
+
 class RepresentationSelector(ABC):
     """Select the least lossy representation supported by perception evidence."""
 

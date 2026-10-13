@@ -11,6 +11,9 @@ from contracts.models import (
     Modality,
     OCRRegion,
     OCRResult,
+    RepresentationInfo,
+    RepresentationKind,
+    RepresentationScores,
 )
 
 __all__ = [
@@ -21,4 +24,7 @@ __all__ = [
     "Modality",
     "OCRRegion",
     "OCRResult",
+    "RepresentationInfo",
+    "RepresentationKind",
+    "RepresentationScores",
 ]

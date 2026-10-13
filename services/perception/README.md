@@ -1,6 +1,12 @@
 # Context + Multimodal Perception Subsystem (`services/perception`)
 
-The **Multimodal Perception** layer is responsible for taking raw screenshot bytes and desktop context captured by the Windows desktop layer, validating image integrity, running local Optical Character Recognition (OCR), deterministically profiling content modalities, extracting basic layout elements, scanning for privacy flags, and producing a structured, canonical **Multimodal Intermediate Representation (MIR v0.1)**.
+The **Multimodal Perception** layer validates screenshot bytes, runs local OCR, profiles content modalities, extracts basic layout elements, scans for privacy flags, and emits MIR v0.2. The contract continues to accept MIR v0.1 payloads.
+
+## Stage 2: Minimum-Sufficient Representation
+
+`services/perception/representation/` defines an injectable `RepresentationSelector` interface and a deterministic `HeuristicRepresentationSelector` fallback. It emits one of `text_sufficient`, `structure_sufficient`, `pixels_required`, or `mixed`, with per-class scores, confidence, pixel-dependency prior, provenance, available representations, and local capabilities. Low confidence, weak OCR, visual content, or mixed evidence conservatively retains pixels. The result is metadata only; this stage does not delete or upload image pixels.
+
+The default implementation is heuristic, not learned. It uses the existing OCR confidence and modality/layout signals. A future model selector can be injected; exceptions fall back to the heuristic. No training or dataset scripts run in the request pipeline. This checkout has no PyTorch/ONNX dependency or verified four-class labeled screenshot dataset, so no classifier was trained and no ML accuracy or latency is claimed. Hardware inventory was unavailable in this environment (Windows management queries denied).
 
 ---
 
@@ -50,18 +56,18 @@ Screenshot Bytes (PNG/JPEG/WebP/BMP) + Context (active_app, window_title, bounds
           False if clean structured text/code/table)
                            │
                            ▼
-              7. Canonical MIR v0.1 Output
+              7. MIR v0.2 with optional representation metadata
 ```
 
 ---
 
-## Canonical MIR v0.1 Schema
+## MIR Schema Compatibility
 
-The subsystem outputs a strictly JSON-serializable structure matching canonical Stage 1 MIR v0.1:
+The subsystem outputs JSON-serializable MIR v0.2. Existing MIR v0.1 payloads remain valid; `representation` is optional so older callers and fixtures continue to validate. The additional field has this shape:
 
 ```json
 {
-  "mir_version": "0.1",
+  "mir_version": "0.2",
   "request_id": "req-12345",
   "image": {
     "sha256": "3a7b9c...",
@@ -111,7 +117,22 @@ The subsystem outputs a strictly JSON-serializable structure matching canonical 
   ],
   "visual_required": false,
   "privacy_flags": [],
-  "overall_confidence": 0.94
+  "overall_confidence": 0.94,
+  "representation": {
+    "kind": "structure_sufficient",
+    "scores": {
+      "text_sufficient": 0.86,
+      "structure_sufficient": 0.90,
+      "pixels_required": 0.10,
+      "mixed": 0.00
+    },
+    "confidence": 0.94,
+    "pixel_dependency_prior": 0.10,
+    "source": "heuristic",
+    "model": null,
+    "available_representations": ["pixels", "ocr_text", "layout"],
+    "local_capabilities": {"ocr": true, "layout": true, "ml_model": false}
+  }
 }
 ```
 
@@ -142,7 +163,7 @@ from services.perception import analyze_capture
 # Synchronous call
 mir_dict = analyze_capture(image_bytes, context={"active_app": "Code"})
 
-# Returns a standard, fully JSON-serializable dictionary matching MIR v0.1
+# Returns a standard, fully JSON-serializable dictionary matching MIR v0.2
 ```
 
 Or instantiate a standalone pipeline:

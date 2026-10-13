@@ -2,7 +2,7 @@
 
 Provides local deterministic pre-flight, real OCR, heuristic multimodal profiling,
 OCR/layout-based object extraction, lightweight privacy scanning, and canonical
-Stage 1 MIR v0.1 generation.
+MIR v0.2 generation with backwards-compatible v0.1 contract support.
 """
 
 from __future__ import annotations
@@ -17,6 +17,9 @@ from services.perception.models import (
     Modality,
     OCRRegion,
     OCRResult,
+    RepresentationInfo,
+    RepresentationKind,
+    RepresentationScores,
 )
 from services.perception.ocr import (
     OCREngine,
@@ -70,7 +73,8 @@ def analyze_capture(
         mir_dict = analyze_capture(image_bytes, context)
 
     Returns:
-        JSON-serializable dictionary representation of canonical MIR v0.1.
+        JSON-serializable dictionary representation of MIR v0.2. The canonical
+        model remains backwards compatible with MIR v0.1 payloads.
     """
     pipeline = get_pipeline(tesseract_path=tesseract_path)
     mir_model = pipeline.analyze(image_bytes, context=context, request_id=request_id)
@@ -89,6 +93,9 @@ __all__ = [
     "OCRError",
     "OCRRegion",
     "OCRResult",
+    "RepresentationInfo",
+    "RepresentationKind",
+    "RepresentationScores",
     "PerceptionPipeline",
     "PreflightError",
     "TesseractOCREngine",

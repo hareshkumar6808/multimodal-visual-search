@@ -1,5 +1,6 @@
 import logging
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
+from dataclasses import dataclass
 from time import perf_counter
 
 from services.orchestrator.config import Settings
@@ -16,6 +17,18 @@ from services.orchestrator.routing.provider_performance import ProviderPerforman
 
 class NoCompatibleProviderError(RuntimeError):
     pass
+
+
+class StreamInterruptedError(RuntimeError):
+    """A provider failed after user-visible output; fallback would duplicate text."""
+
+
+@dataclass(frozen=True)
+class ProviderStreamEvent:
+    type: str
+    text: str = ""
+    provider: str | None = None
+    metrics: dict[str, float] | None = None
 
 
 logger = logging.getLogger(__name__)
@@ -139,6 +152,7 @@ class ProviderRegistry:
         local_only: bool = False,
         task_kind: str | None = None,
         on_progress: Callable[[str, str, str], None] | None = None,
+        ranked_provider_candidates: tuple[str, ...] = (),
     ) -> tuple[str, ProviderResult, list[str], bool]:
         resolved_task_kind = task_kind or ("vision" if image_required else "text")
         candidates = self.ranked(
@@ -165,6 +179,9 @@ class ProviderRegistry:
                 for provider in text_fallbacks
                 if provider.name not in candidate_names and "vision" not in provider.capabilities
             )
+        if ranked_provider_candidates:
+            order = {name: index for index, name in enumerate(ranked_provider_candidates)}
+            candidates.sort(key=lambda provider: order.get(provider.name, len(order)))
         if not candidates:
             raise NoCompatibleProviderError("No configured, available provider supports this route")
         failures: list[str] = []
@@ -243,6 +260,69 @@ class ProviderRegistry:
                             f"{provider.name} did not respond; trying the next provider",
                         )
         raise NoCompatibleProviderError(f"All compatible providers failed: {', '.join(failures)}")
+
+    async def stream_with_fallback(
+        self,
+        expert: Expert,
+        prompt: str,
+        image_required: bool,
+        image_bytes: bytes,
+        mime_type: str,
+        *,
+        prefer_cloud: bool = False,
+        ranked_provider_candidates: tuple[str, ...] = (),
+    ) -> AsyncIterator[ProviderStreamEvent]:
+        candidates = self.ranked(expert, image_required, prefer_cloud=prefer_cloud)
+        if ranked_provider_candidates:
+            order = {name: index for index, name in enumerate(ranked_provider_candidates)}
+            candidates.sort(key=lambda provider: order.get(provider.name, len(order)))
+        if not candidates:
+            raise NoCompatibleProviderError("No configured, available provider supports this route")
+        failed: list[str] = []
+        stream_started = perf_counter()
+        attempted_families: set[str] = set()
+        for provider in candidates:
+            family = provider.family or provider.name
+            if family in attempted_families:
+                continue
+            attempted_families.add(family)
+            provider_started = perf_counter()
+            emitted = False
+            try:
+                yield ProviderStreamEvent("progress", provider=provider.name)
+                send_image = image_required and "vision" in provider.capabilities
+                async for delta in provider.stream_generate(
+                    prompt, image_bytes if send_image else None, mime_type
+                ):
+                    if not delta:
+                        continue
+                    now = perf_counter()
+                    metrics = None
+                    if not emitted:
+                        metrics = {
+                            "provider_start_ms": (provider_started - stream_started) * 1000,
+                            "provider_ttft_ms": (now - provider_started) * 1000,
+                            "time_to_first_useful_output_ms": (now - stream_started) * 1000,
+                        }
+                    emitted = True
+                    yield ProviderStreamEvent("delta", delta, provider.name, metrics)
+                total = (perf_counter() - provider_started) * 1000
+                yield ProviderStreamEvent(
+                    "done",
+                    provider=provider.name,
+                    metrics={
+                        "provider_total_ms": total,
+                        "stream_duration_ms": (perf_counter() - stream_started) * 1000,
+                    },
+                )
+                return
+            except Exception as exc:
+                if emitted:
+                    raise StreamInterruptedError(
+                        f"{provider.name} stream interrupted after partial output: {exc}"
+                    ) from exc
+                failed.append(provider.name)
+        raise NoCompatibleProviderError(f"All compatible providers failed: {', '.join(failed)}")
 
     async def aclose(self) -> None:
         for provider in self.providers:

@@ -673,6 +673,7 @@ async fn check_backend_health() -> BackendHealth {
 
 #[tauri::command]
 async fn analyze_capture(
+    app: AppHandle,
     state: State<'_, DesktopState>,
     capture_id: String,
     payload: AnalyzePayload,
@@ -712,7 +713,7 @@ async fn analyze_capture(
         .timeout(Duration::from_secs(180))
         .build()
         .map_err(|error| CommandError::new("network", error.to_string(), None))?
-        .post(format!("{BACKEND_BASE_URL}/api/analyze"))
+        .post(format!("{BACKEND_BASE_URL}/api/analyze/stream"))
         .multipart(form)
         .send()
         .await
@@ -724,8 +725,52 @@ async fn analyze_capture(
             };
             CommandError::new(kind, error.to_string(), None)
         })?;
-    eprintln!("ANALYZE_REQUEST_SENT capture_id={capture_id}");
-    decode_backend_response(response, &capture_id).await
+    let status = response.status();
+    if !status.is_success() {
+        return decode_backend_response(response, &capture_id).await;
+    }
+    eprintln!("ANALYZE_STREAM_STARTED capture_id={capture_id}");
+    let mut response = response;
+    let mut buffer = String::new();
+    let mut final_response: Option<AnalyzeResponse> = None;
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|error| CommandError::new("network", error.to_string(), None))?
+    {
+        buffer.push_str(&String::from_utf8_lossy(&chunk));
+        while let Some(boundary) = buffer.find("\n\n") {
+            let frame = buffer[..boundary].to_string();
+            buffer.drain(..boundary + 2);
+            if let Some(data) = frame.lines().find_map(|line| line.strip_prefix("data: ")) {
+                let event: serde_json::Value = serde_json::from_str(data).map_err(|error| {
+                    CommandError::new("invalid_response", error.to_string(), Some(status.as_u16()))
+                })?;
+                let _ = app.emit("analysis-stream", event.clone());
+                if event.get("type").and_then(|value| value.as_str()) == Some("done") {
+                    if let Some(response_value) = event.get("response") {
+                        final_response = Some(serde_json::from_value(response_value.clone()).map_err(|error| {
+                            CommandError::new("invalid_response", error.to_string(), Some(status.as_u16()))
+                        })?);
+                    }
+                }
+                if event.get("type").and_then(|value| value.as_str()) == Some("error") {
+                    return Err(CommandError::new(
+                        "server",
+                        event.get("message").and_then(|value| value.as_str()).unwrap_or("Stream failed"),
+                        Some(status.as_u16()),
+                    ));
+                }
+            }
+        }
+    }
+    final_response.ok_or_else(|| {
+        CommandError::new(
+            "invalid_response",
+            "Backend stream ended without a final response.",
+            Some(status.as_u16()),
+        )
+    })
 }
 
 #[tauri::command]

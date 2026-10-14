@@ -158,6 +158,31 @@ export function failAssistant(
   };
 }
 
+export function interruptAssistant(
+  state: ConversationState,
+  assistantId: string,
+  error: string,
+  partialText?: string,
+): ConversationState {
+  return {
+    ...state,
+    conversation: {
+      ...state.conversation,
+      messages: state.conversation.messages.map((message) =>
+        message.id === assistantId
+          ? {
+              ...message,
+              content: partialText || message.content || "Request interrupted.",
+              status: "error" as const,
+              error,
+            }
+          : message,
+      ),
+      updatedAt: Date.now(),
+    },
+  };
+}
+
 export function updateAssistantProgress(
   state: ConversationState,
   assistantId: string,
@@ -169,6 +194,41 @@ export function updateAssistantProgress(
       ...state.conversation,
       messages: state.conversation.messages.map((message) =>
         message.id === assistantId ? { ...message, progress } : message,
+      ),
+      updatedAt: Date.now(),
+    },
+  };
+}
+
+export function appendAssistantDelta(
+  state: ConversationState,
+  assistantId: string,
+  delta: string,
+): ConversationState {
+  return {
+    ...state,
+    conversation: {
+      ...state.conversation,
+      messages: state.conversation.messages.map((message) =>
+        message.id === assistantId
+          ? { ...message, content: message.content + delta, status: "sending" as const }
+          : message,
+      ),
+      updatedAt: Date.now(),
+    },
+  };
+}
+
+export function completeAssistantStream(
+  state: ConversationState,
+  assistantId: string,
+): ConversationState {
+  return {
+    ...state,
+    conversation: {
+      ...state.conversation,
+      messages: state.conversation.messages.map((message) =>
+        message.id === assistantId ? { ...message, status: "complete" as const } : message,
       ),
       updatedAt: Date.now(),
     },

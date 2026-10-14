@@ -10,10 +10,13 @@ import {
 import { APP_CONFIG } from "../config/app";
 import {
   appendPendingTurn,
+  appendAssistantDelta,
   canSend,
+  completeAssistantStream,
   conversationFromCapture,
   emptyConversation,
   failAssistant,
+  interruptAssistant,
   removeDraftAttachment,
   resolveAssistant,
   restoreConversation,
@@ -29,6 +32,7 @@ import {
   getAnalysisProgress,
   listConversations,
   ProviderUnavailableError,
+  streamConversation,
 } from "../services/backendClient";
 import { desktopBridge } from "../services/desktopBridge";
 import type { CaptureContext, ConversationSummary } from "../types/api";
@@ -62,6 +66,9 @@ export function ChatWindow({ captureId }: { captureId: string | null }) {
   const input = useRef<HTMLTextAreaElement>(null);
   const timeline = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
+  const streamAbort = useRef<AbortController | null>(null);
+
+  useEffect(() => () => streamAbort.current?.abort(), []);
 
   useEffect(() => {
     if (!captureId || captureId === state.conversation.activeCaptureId) return;
@@ -165,12 +172,52 @@ export function ChatWindow({ captureId }: { captureId: string | null }) {
     })();
     try {
       const context = snapshot.capture?.payload.context ?? fallbackContext;
+      if (!firstTurn) {
+        const controller = new AbortController();
+        streamAbort.current = controller;
+        await streamConversation({
+          request_id: requestId,
+          conversation_id: snapshot.conversation.id,
+          query: text,
+          context,
+        }, (event) => {
+          if (event.type === "delta" || event.type === "direct_result" || event.type === "tool_result") {
+            setState((current) => appendAssistantDelta(current, assistantId, event.text ?? ""));
+          } else if (event.type === "done") {
+            setState((current) => event.response
+              ? resolveAssistant(current, assistantId, event.response)
+              : completeAssistantStream(current, assistantId));
+          } else if (event.type === "error") {
+            setState((current) => interruptAssistant(
+              current,
+              assistantId,
+              event.message ?? "Stream interrupted.",
+              event.partial_text,
+            ));
+          }
+        }, controller.signal);
+        streamAbort.current = null;
+        setBackendStatus("connected");
+        void refreshHistory();
+        return;
+      }
       const response = firstTurn && snapshot.capture
         ? await analyzeCapture(snapshot.capture.capture_id, {
             ...snapshot.capture.payload,
             request_id: requestId,
             conversation_id: snapshot.conversation.id,
             query: text || null,
+          }, (event) => {
+            if (event.type === "delta" || event.type === "direct_result" || event.type === "tool_result") {
+              setState((current) => appendAssistantDelta(current, assistantId, event.text ?? ""));
+            } else if (event.type === "error") {
+              setState((current) => interruptAssistant(
+                current,
+                assistantId,
+                event.message ?? "Stream interrupted.",
+                event.partial_text,
+              ));
+            }
           })
         : await continueConversation({
             request_id: requestId,
@@ -217,6 +264,8 @@ export function ChatWindow({ captureId }: { captureId: string | null }) {
   }
 
   function startNewChat() {
+    streamAbort.current?.abort();
+    streamAbort.current = null;
     setState(emptyConversation(newId()));
     setQuery("");
     setProcessingId(null);
@@ -282,7 +331,9 @@ export function ChatWindow({ captureId }: { captureId: string | null }) {
                 </button>
               ))}
               {message.status === "sending" ? (
-                <LiveProgress events={message.progress ?? []} />
+                message.content
+                  ? <p aria-live="polite">{message.content}</p>
+                  : <LiveProgress events={message.progress ?? []} />
               ) : (
                 message.content && <p>{message.content}</p>
               )}

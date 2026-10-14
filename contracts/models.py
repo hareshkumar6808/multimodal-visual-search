@@ -44,6 +44,8 @@ class AnalyzePayload(BaseModel):
     conversation_id: str | None = Field(default=None, min_length=1, max_length=128)
     query: str | None = None
     context: CaptureContext = Field(default_factory=CaptureContext)
+    route_decision: RouteDecisionPayload | None = None
+    tool_input: dict[str, Any] | None = None
 
 
 class ChatPayload(BaseModel):
@@ -51,6 +53,21 @@ class ChatPayload(BaseModel):
     conversation_id: str = Field(min_length=1, max_length=128)
     query: str = Field(min_length=1, max_length=20_000)
     context: CaptureContext = Field(default_factory=CaptureContext)
+    route_decision: RouteDecisionPayload | None = None
+    tool_input: dict[str, Any] | None = None
+
+
+class RouteDecisionPayload(BaseModel):
+    expert: str
+    sub_expert: str = "general"
+    leaf_route: str | None = None
+    routing_confidence: float = Field(default=1.0, ge=0, le=1)
+    execution_mode: Literal["direct", "tool", "local_llm", "cloud_text", "cloud_vision"] = (
+        "cloud_text"
+    )
+    requested_tool: str | None = None
+    send_pixels: bool = False
+    ranked_provider_candidates: list[str] = Field(default_factory=list)
 
 
 class ImageInfo(BaseModel):
@@ -200,6 +217,13 @@ class Metrics(BaseModel):
     feature_build_ms: float = 0
     classifier_ms: float = 0
     router_total_ms: float = 0
+    direct_ms: float | None = None
+    tool_ms: float | None = None
+    provider_start_ms: float | None = None
+    provider_ttft_ms: float | None = None
+    provider_total_ms: float | None = None
+    stream_duration_ms: float | None = None
+    time_to_first_useful_output_ms: float | None = None
 
 
 class AnalyzeResponse(BaseModel):

@@ -1,5 +1,7 @@
 import base64
+import json
 import socket
+from collections.abc import AsyncIterator
 from typing import Any
 from urllib.parse import urlparse
 
@@ -96,6 +98,60 @@ class OpenAICompatibleProvider(Provider):
             return str(response.json()["choices"][0]["message"]["content"])
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise ProviderError(f"Provider {self.name} returned an invalid response") from exc
+
+    async def stream_generate(
+        self, prompt: str, image_bytes: bytes | None = None, mime_type: str = "image/png"
+    ) -> AsyncIterator[str]:
+        if not self.available() or not self.base_url or not self.model:
+            raise ProviderError(f"Provider {self.name} is unavailable or not configured")
+        if image_bytes is not None and not self.supports_vision:
+            raise ProviderError(f"Provider {self.name} does not support vision")
+        user_content: str | list[dict[str, Any]] = prompt
+        if image_bytes is not None:
+            encoded = base64.b64encode(image_bytes).decode("ascii")
+            user_content = [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{encoded}"}},
+            ]
+        headers = {"Content-Type": "application/json", "Accept": "text/event-stream"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        body = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": user_content}],
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+            "stream": True,
+        }
+        self.stats.session_requests += 1
+        self.stats.requests_today += 1
+        started = __import__("time").perf_counter()
+        try:
+            async with self.client.stream(
+                "POST", f"{self.base_url}/chat/completions", headers=headers, json=body
+            ) as response:
+                if response.is_error:
+                    raise ProviderError(
+                        f"Provider {self.name} returned HTTP {response.status_code}"
+                    )
+                async for line in response.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        delta = json.loads(data)["choices"][0]["delta"].get("content")
+                    except (KeyError, IndexError, TypeError, ValueError) as exc:
+                        raise ProviderError(
+                            f"Provider {self.name} returned an invalid stream"
+                        ) from exc
+                    if delta:
+                        yield str(delta)
+        except Exception:
+            self.stats.failures += 1
+            raise
+        self.stats.total_latency_ms += round((__import__("time").perf_counter() - started) * 1000)
 
     async def aclose(self) -> None:
         await self.client.aclose()

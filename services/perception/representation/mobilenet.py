@@ -116,7 +116,7 @@ class MobileNetV3SmallSelector(RepresentationSelector):
                     else:
                         import torch
                         from torch import nn
-                        from torchvision import models  # type: ignore[import-untyped]
+                        from torchvision import models
 
                         model = models.mobilenet_v3_small(weights=None)
                         model.classifier[-1] = nn.Linear(
@@ -191,7 +191,7 @@ class MobileNetV3SmallSelector(RepresentationSelector):
         if self._torch is None:
             raise RuntimeError("PyTorch model backend failed to initialize")
 
-        from torchvision.transforms.functional import (  # type: ignore[import-untyped]
+        from torchvision.transforms.functional import (
             normalize,
             pil_to_tensor,
         )

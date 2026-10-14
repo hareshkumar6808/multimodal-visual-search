@@ -1,0 +1,34 @@
+{
+  "bundled_model_artifacts": [
+    {
+      "bytes": 6097447,
+      "path": "models/perception/mobilenet_v3_small.onnx",
+      "sha256": "965b75a574ab348952d001091c1a85d59f1f8ed4f02df2649968b1cc85134ad1"
+    },
+    {
+      "bytes": 6212245,
+      "path": "models/perception/mobilenet_v3_small.pth",
+      "sha256": "142b3e332a9a3b3649a5bd04ede7f7420947c262a4b85fe6bdf875afacd58465"
+    }
+  ],
+  "environment_note": "Host Python 3.14 reports an invalid base real-location warning, so validation reused the existing project virtual environment. The wheel itself built and installed successfully.",
+  "isolated_target_install": {
+    "command_scope": "pip install --no-deps --target .tools/wheel-installed",
+    "imported_services_from": ".tools/wheel-installed/services/__init__.py",
+    "status": "passed"
+  },
+  "packaged_inference_smoke": {
+    "backend": "onnxruntime",
+    "model_available": true,
+    "model_id": "mobilenet_v3_small_onnxruntime:965b75a574ab3489",
+    "probability_count": 4,
+    "probability_sum": 1.0,
+    "status": "passed"
+  },
+  "runtime_network_requirement": "none; local artifacts were resolved from installed wheel contents",
+  "wheel": {
+    "bytes": 11431564,
+    "filename": "multimodal_visual_search-0.1.0-py3-none-any.whl",
+    "sha256": "5ad26fcfd7d86b48ee504967795dad0a0be1273ced2c1fcd269a6135041bbf78"
+  }
+}

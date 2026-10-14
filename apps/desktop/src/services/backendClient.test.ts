@@ -11,6 +11,7 @@ import {
   getAnalysisProgress,
   normalizeBackendError,
   ProviderUnavailableError,
+  streamConversation,
 } from "./backendClient";
 
 const payload: AnalyzePayload = {
@@ -74,5 +75,30 @@ describe("analyzeCapture", () => {
     const error = normalizeBackendError({ kind: "server", message: "Internal error", status: 500 });
     expect(error).toBeInstanceOf(BackendRequestError);
     expect(error).not.toBeInstanceOf(BackendUnavailableError);
+  });
+
+  it("delivers typed SSE events incrementally", async () => {
+    const body = [
+      'event: start\ndata: {"type":"start"}\n\n',
+      'event: delta\ndata: {"type":"delta","text":"one "}\n\n',
+      'event: delta\ndata: {"type":"delta","text":"two"}\n\n',
+      'event: done\ndata: {"type":"done"}\n\n',
+    ];
+    const encoder = new TextEncoder();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(new ReadableStream({
+      start(controller) {
+        body.forEach((frame) => controller.enqueue(encoder.encode(frame)));
+        controller.close();
+      },
+    }), { status: 200 })));
+    const events: string[] = [];
+    await streamConversation({
+      request_id: "stream-1",
+      conversation_id: "conversation-a",
+      query: "Explain",
+      context: payload.context,
+    }, (event) => events.push(`${event.type}:${event.text ?? ""}`));
+    expect(events).toEqual(["start:", "delta:one ", "delta:two", "done:"]);
+    vi.unstubAllGlobals();
   });
 });

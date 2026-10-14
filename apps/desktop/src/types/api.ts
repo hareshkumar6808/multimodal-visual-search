@@ -125,3 +125,13 @@ export interface BackendHealth {
   message: string;
   provider: string | null;
 }
+
+export interface StreamEvent {
+  type: "start" | "progress" | "direct_result" | "tool_result" | "delta" | "done" | "error";
+  text?: string;
+  message?: string;
+  partial_text?: string;
+  provider?: string | null;
+  response?: AnalyzeResponse;
+  metrics?: Record<string, number>;
+}

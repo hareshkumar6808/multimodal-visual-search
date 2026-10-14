@@ -1,4 +1,6 @@
 import base64
+import json
+from collections.abc import AsyncIterator
 from urllib.parse import quote
 
 import httpx
@@ -67,3 +69,50 @@ class GeminiProvider(Provider):
 
     async def aclose(self) -> None:
         await self.client.aclose()
+
+    async def stream_generate(
+        self, prompt: str, image_bytes: bytes | None = None, mime_type: str = "image/png"
+    ) -> AsyncIterator[str]:
+        if not self.available() or not self.api_key or not self.model:
+            raise ProviderError("Provider gemini is unavailable or not configured")
+        parts: list[dict[str, object]] = [{"text": prompt}]
+        if image_bytes is not None:
+            parts.insert(
+                0,
+                {
+                    "inline_data": {
+                        "mime_type": mime_type,
+                        "data": base64.b64encode(image_bytes).decode("ascii"),
+                    }
+                },
+            )
+        url = f"{self.base_url}/models/{quote(self.model, safe='')}:streamGenerateContent?alt=sse"
+        self.stats.session_requests += 1
+        self.stats.requests_today += 1
+        async with self.client.stream(
+            "POST",
+            url,
+            headers={
+                "x-goog-api-key": self.api_key,
+                "Content-Type": "application/json",
+                "Accept": "text/event-stream",
+            },
+            json={
+                "contents": [{"role": "user", "parts": parts}],
+                "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1024},
+            },
+        ) as response:
+            if response.is_error:
+                self.stats.failures += 1
+                raise ProviderError(f"Provider gemini returned HTTP {response.status_code}")
+            async for line in response.aiter_lines():
+                if not line.startswith("data:"):
+                    continue
+                try:
+                    data = json.loads(line[5:].strip())
+                    text = data["candidates"][0]["content"]["parts"][0].get("text")
+                except (KeyError, IndexError, TypeError, ValueError) as exc:
+                    self.stats.failures += 1
+                    raise ProviderError("Provider gemini returned an invalid stream") from exc
+                if text:
+                    yield str(text)

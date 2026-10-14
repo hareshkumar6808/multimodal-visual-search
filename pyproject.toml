@@ -15,6 +15,8 @@ dependencies = [
   "pydantic-settings>=2.4,<3",
   "pytesseract>=0.3.10,<1",
   "python-multipart>=0.0.9,<1",
+  "sqlparse>=0.5,<1",
+  "sympy>=1.13,<2",
   "uvicorn[standard]>=0.30,<1",
 ]
 
@@ -28,6 +30,10 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["contracts", "services"]
+
+[[tool.mypy.overrides]]
+module = ["sympy", "sqlparse", "sqlparse.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import date
 from time import perf_counter
@@ -100,6 +101,13 @@ class Provider(ABC):
     async def aclose(self) -> None:
         """Release provider resources when the application shuts down."""
         return None
+
+    async def stream_generate(
+        self, prompt: str, image_bytes: bytes | None = None, mime_type: str = "image/png"
+    ) -> AsyncIterator[str]:
+        """Yield user-visible text. Providers may override with native streaming."""
+        result = await self.generate(prompt, image_bytes, mime_type)
+        yield result.text
 
     @abstractmethod
     async def _generate(self, prompt: str, image_bytes: bytes | None, mime_type: str) -> str:

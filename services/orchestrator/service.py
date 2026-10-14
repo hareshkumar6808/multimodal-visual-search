@@ -1,4 +1,5 @@
 import logging
+from collections.abc import AsyncIterator
 from time import perf_counter
 from uuid import uuid4
 
@@ -13,6 +14,7 @@ from contracts.models import (
     TraceEvent,
 )
 from services.orchestrator.conversations import ConversationStore
+from services.orchestrator.execution.engine import ExecutionEngine, RouteDecisionV2
 from services.orchestrator.experts import SUGGESTIONS
 from services.orchestrator.intent import classify_intent
 from services.orchestrator.perception import PerceptionAdapter
@@ -39,6 +41,7 @@ class Orchestrator:
         self.providers = providers
         self.conversations = conversations or ConversationStore()
         self.progress = progress or ProgressStore()
+        self.execution = ExecutionEngine()
 
     async def analyze(
         self, image_bytes: bytes, mime_type: str, payload: AnalyzePayload
@@ -116,6 +119,8 @@ class Orchestrator:
             conversation_id=payload.conversation_id,
             query=payload.query,
             context=payload.context,
+            route_decision=payload.route_decision,
+            tool_input=payload.tool_input,
         )
         trace = [
             TraceEvent(
@@ -155,9 +160,7 @@ class Orchestrator:
         intent = classify_intent(payload.query, mir.primary_modality)
         logger.info("INTENT_SELECTED request_id=%s intent=%s", payload.request_id, intent)
         trace.append(TraceEvent(stage="intent", status="complete", message=intent.title()))
-        self.progress.append(
-            payload.request_id, "intent", "complete", f"Intent: {intent}"
-        )
+        self.progress.append(payload.request_id, "intent", "complete", f"Intent: {intent}")
 
         routing_started = perf_counter()
         expert_route = self.router.route(mir, intent)
@@ -183,6 +186,62 @@ class Orchestrator:
             f"Expert: {expert_route.expert.name}",
         )
         message_id = str(uuid4())
+
+        route_v2 = (
+            RouteDecisionV2(**payload.route_decision.model_dump())
+            if payload.route_decision
+            else None
+        )
+        decision, policy = self.execution.adapt(route_v2, expert_route.expert.name)
+        local_result = self.execution.execute_local(
+            decision, policy, ocr_text=mir.ocr.text, tool_input=payload.tool_input
+        )
+        if local_result.kind != "provider":
+            event_stage = "direct" if local_result.kind == "direct" else "tool"
+            trace.append(
+                TraceEvent(
+                    stage=event_stage,
+                    status="complete",
+                    duration_ms=round(next(iter(local_result.metrics.values()), 0)),
+                )
+            )
+            total_ms = round((perf_counter() - total_started) * 1000)
+            response = AnalyzeResponse(
+                request_id=payload.request_id,
+                conversation_id=conversation_id,
+                message_id=message_id,
+                answer=local_result.answer,
+                suggested_actions=[],
+                mir_summary=MIRSummary(
+                    primary_modality=mir.primary_modality, confidence=mir.overall_confidence
+                ),
+                route=RouteInfo(
+                    intent=intent,
+                    expert=policy.canonical_leaf,
+                    provider=None,
+                    reason_code=f"{local_result.kind.upper()}_EXECUTION",
+                ),
+                trace=trace,
+                metrics=Metrics(
+                    latency_ms=total_ms,
+                    perception_ms=perception_ms,
+                    routing_ms=routing_ms,
+                    provider_ms=0,
+                    cloud_image_uploaded=False,
+                    api_calls=0,
+                    **local_result.metrics,
+                ),
+            )
+            self.conversations.append_exchange(
+                conversation_id,
+                payload.query or "",
+                local_result.answer or "",
+                response,
+                user_has_image=user_has_image,
+                assistant_id=message_id,
+            )
+            self.progress.finish(payload.request_id)
+            return response
 
         if intent == "suggest":
             suggestions = SUGGESTIONS[mir.primary_modality]
@@ -228,14 +287,20 @@ class Orchestrator:
             return response
 
         prompt = build_prompt(expert_route.expert, mir, payload, history)
+        prompt += f"\n\nSPECIALIZED POLICY:\n{policy.prompt_fragment}"
         prefer_cloud = (
-            expert_route.image_required
-            or expert_route.expert.name
-            in {"code-expert", "table-expert", "chart-expert", "vision-expert"}
-            or intent in {"explain", "debug", "compare", "calculate", "search", "general"}
-            or len(history) >= 4
-            or len(mir.ocr.text) > 1_200
+            decision.execution_mode.startswith("cloud")
+            if route_v2
+            else (
+                expert_route.image_required
+                or expert_route.expert.name
+                in {"code-expert", "table-expert", "chart-expert", "vision-expert"}
+                or intent in {"explain", "debug", "compare", "calculate", "search", "general"}
+                or len(history) >= 4
+                or len(mir.ocr.text) > 1_200
+            )
         )
+        image_required = decision.send_pixels if route_v2 else expert_route.image_required
         (
             provider_name,
             result,
@@ -244,7 +309,7 @@ class Orchestrator:
         ) = await self.providers.generate_with_fallback(
             expert_route.expert,
             prompt,
-            expert_route.image_required,
+            image_required,
             image_bytes,
             mime_type,
             payload.request_id,
@@ -252,6 +317,7 @@ class Orchestrator:
             on_progress=lambda stage, status, message: self.progress.append(
                 payload.request_id, stage, status, message
             ),
+            ranked_provider_candidates=decision.ranked_provider_candidates,
         )
         logger.info(
             "PROVIDER_SELECTED request_id=%s provider=%s", payload.request_id, provider_name
@@ -286,9 +352,7 @@ class Orchestrator:
         )
         if not valid:
             raise ResponseValidationError(validation_message)
-        self.progress.append(
-            payload.request_id, "validation", "complete", validation_message
-        )
+        self.progress.append(payload.request_id, "validation", "complete", validation_message)
 
         total_ms = round((perf_counter() - total_started) * 1000)
         logger.info(
@@ -309,7 +373,7 @@ class Orchestrator:
             ),
             route=RouteInfo(
                 intent=intent,
-                expert=expert_route.expert.name,
+                expert=policy.canonical_leaf if route_v2 else expert_route.expert.name,
                 provider=provider_name,
                 reason_code=expert_route.reason_code,
             ),
@@ -333,3 +397,167 @@ class Orchestrator:
         )
         self.progress.finish(payload.request_id)
         return response
+
+    async def stream_analyze(
+        self, image_bytes: bytes, mime_type: str, payload: AnalyzePayload
+    ) -> AsyncIterator[dict[str, object]]:
+        yield {"type": "start", "request_id": payload.request_id}
+        try:
+            if not payload.query:
+                response = await self.analyze(image_bytes, mime_type, payload)
+                yield {"type": "done", "response": response.model_dump(mode="json")}
+                return
+            if payload.route_decision and payload.route_decision.execution_mode in {
+                "direct",
+                "tool",
+            }:
+                response = await self.analyze(image_bytes, mime_type, payload)
+                event_type = f"{payload.route_decision.execution_mode}_result"
+                yield {
+                    "type": event_type,
+                    "text": response.answer or "",
+                    "metrics": response.metrics.model_dump(),
+                }
+                yield {"type": "done", "response": response.model_dump(mode="json")}
+                return
+            conversation_id = payload.conversation_id or str(uuid4())
+            mir = await self.perception.analyze_capture(
+                image_bytes, payload.context, payload.request_id
+            )
+            self.conversations.save_capture(
+                conversation_id, payload.request_id, mir, image_bytes, mime_type
+            )
+            yield {
+                "type": "progress",
+                "stage": "perception",
+                "message": f"MIR v{mir.mir_version} ready",
+            }
+            chat_payload = ChatPayload(
+                request_id=payload.request_id,
+                conversation_id=conversation_id,
+                query=payload.query,
+                context=payload.context,
+                route_decision=payload.route_decision,
+                tool_input=payload.tool_input,
+            )
+            async for event in self.stream_chat(chat_payload):
+                if event.get("type") != "start":
+                    yield event
+        except Exception as exc:
+            yield {"type": "error", "message": str(exc), "partial_text": ""}
+
+    async def stream_chat(self, payload: ChatPayload) -> AsyncIterator[dict[str, object]]:
+        # Direct/tool requests retain exact normal semantics. Provider paths use native
+        # provider streaming and never restart after a visible delta.
+        yield {"type": "start", "request_id": payload.request_id}
+        mir, image_bytes, mime_type, _ = self.conversations.capture_context(payload.conversation_id)
+        intent = classify_intent(payload.query, mir.primary_modality)
+        expert_route = self.router.route(mir, intent)
+        route_v2 = (
+            RouteDecisionV2(**payload.route_decision.model_dump())
+            if payload.route_decision
+            else None
+        )
+        decision, policy = self.execution.adapt(route_v2, expert_route.expert.name)
+        local = self.execution.execute_local(
+            decision, policy, ocr_text=mir.ocr.text, tool_input=payload.tool_input
+        )
+        if local.kind != "provider":
+            yield {
+                "type": f"{local.kind}_result",
+                "text": local.answer or "",
+                "tool_result": local.tool_result,
+                "metrics": {**local.metrics, "api_calls": 0},
+            }
+            yield {
+                "type": "done",
+                "text": local.answer or "",
+                "metrics": {**local.metrics, "api_calls": 0},
+            }
+            return
+        analyze_payload = AnalyzePayload(
+            request_id=payload.request_id,
+            conversation_id=payload.conversation_id,
+            query=payload.query,
+            context=payload.context,
+        )
+        prompt = build_prompt(
+            expert_route.expert,
+            mir,
+            analyze_payload,
+            self.conversations.prompt_history(payload.conversation_id),
+        )
+        prompt += f"\n\nSPECIALIZED POLICY:\n{policy.prompt_fragment}"
+        complete = ""
+        provider_name: str | None = None
+        stream_metrics: dict[str, float] = {}
+        try:
+            async for event in self.providers.stream_with_fallback(
+                expert_route.expert,
+                prompt,
+                decision.send_pixels or expert_route.image_required,
+                image_bytes,
+                mime_type,
+                prefer_cloud=decision.execution_mode.startswith("cloud"),
+                ranked_provider_candidates=decision.ranked_provider_candidates,
+            ):
+                if event.type == "delta":
+                    complete += event.text
+                provider_name = event.provider or provider_name
+                stream_metrics.update(event.metrics or {})
+                if event.type != "done":
+                    yield {
+                        "type": event.type,
+                        "text": event.text,
+                        "provider": event.provider,
+                        "metrics": event.metrics,
+                    }
+            if complete:
+                response = AnalyzeResponse(
+                    request_id=payload.request_id,
+                    conversation_id=payload.conversation_id,
+                    message_id=str(uuid4()),
+                    answer=complete,
+                    suggested_actions=[],
+                    mir_summary=MIRSummary(
+                        primary_modality=mir.primary_modality, confidence=mir.overall_confidence
+                    ),
+                    route=RouteInfo(
+                        intent=intent,
+                        expert=policy.canonical_leaf,
+                        provider=provider_name,
+                        reason_code="STREAM_PROVIDER",
+                    ),
+                    trace=[
+                        TraceEvent(
+                            stage="provider", status="complete", message=f"{provider_name} streamed"
+                        )
+                    ],
+                    metrics=Metrics(
+                        latency_ms=round(stream_metrics.get("stream_duration_ms", 0)),
+                        perception_ms=0,
+                        routing_ms=0,
+                        provider_ms=round(stream_metrics.get("provider_total_ms", 0)),
+                        cloud_image_uploaded=bool(
+                            decision.send_pixels and provider_name != "local"
+                        ),
+                        api_calls=1,
+                        **stream_metrics,
+                    ),
+                )
+                self.conversations.append_exchange(
+                    payload.conversation_id,
+                    payload.query,
+                    complete,
+                    response,
+                    user_has_image=False,
+                    assistant_id=response.message_id or str(uuid4()),
+                )
+                yield {
+                    "type": "done",
+                    "text": complete,
+                    "response": response.model_dump(mode="json"),
+                    "metrics": stream_metrics,
+                }
+        except Exception as exc:
+            yield {"type": "error", "message": str(exc), "partial_text": complete}

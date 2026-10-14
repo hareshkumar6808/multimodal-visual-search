@@ -1,5 +1,8 @@
 # Multimodal Visual Search
 
+Stage 2 Component 3 recovery and validation details are in
+[`STAGE2_COMPONENT3_RECOVERY_REPORT.md`](STAGE2_COMPONENT3_RECOVERY_REPORT.md).
+
 Multimodal Visual Search is a Windows desktop app for selecting part of the screen and discussing it with a routed AI assistant. Stage 1 captures a rectangle, runs local OCR and perception, builds MIR v0.1, selects a specialized expert, and uses configured cloud providers with an offline local fallback. Images, messages, traces, and semantic context remain available in a persistent conversation.
 
 # Run on Windows

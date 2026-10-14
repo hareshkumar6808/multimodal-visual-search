@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  appendAssistantDelta,
   appendPendingTurn,
   canSend,
+  completeAssistantStream,
   conversationFromCapture,
   emptyConversation,
   failAssistant,
+  interruptAssistant,
   removeDraftAttachment,
   resolveAssistant,
   updateAssistantProgress,
@@ -42,6 +45,33 @@ function response(turn: number): AnalyzeResponse {
 }
 
 describe("conversation state", () => {
+  it("assembles incremental assistant deltas and completes the message", () => {
+    let state = appendPendingTurn(
+      conversationFromCapture("conversation-a", capture, "attachment-a"),
+      "Explain",
+      "user-stream",
+      "assistant-stream",
+    );
+    state = appendAssistantDelta(state, "assistant-stream", "First ");
+    state = appendAssistantDelta(state, "assistant-stream", "second");
+    expect(state.conversation.messages[1].content).toBe("First second");
+    expect(state.conversation.messages[1].status).toBe("sending");
+    state = completeAssistantStream(state, "assistant-stream");
+    expect(state.conversation.messages[1].status).toBe("complete");
+  });
+
+  it("preserves partial output when a stream is interrupted", () => {
+    let state = appendPendingTurn(
+      conversationFromCapture("conversation-a", capture, "attachment-a"),
+      "Explain",
+      "user-interrupted",
+      "assistant-interrupted",
+    );
+    state = appendAssistantDelta(state, "assistant-interrupted", "Useful partial answer");
+    state = interruptAssistant(state, "assistant-interrupted", "Connection lost");
+    expect(state.conversation.messages[1].content).toBe("Useful partial answer");
+    expect(state.conversation.messages[1].status).toBe("error");
+  });
   it("creates a new conversation with the capture as a draft attachment", () => {
     const state = conversationFromCapture("conversation-a", capture, "attachment-a");
     expect(state.draftAttachment?.captureId).toBe("capture-a");

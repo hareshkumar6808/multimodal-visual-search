@@ -4,6 +4,8 @@ from contextlib import asynccontextmanager
 from typing import Annotated, cast
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
 from contracts.models import (
@@ -52,6 +54,12 @@ def create_app(orchestrator: Orchestrator | None = None) -> FastAPI:
             active.conversations.close()
 
     app = FastAPI(title="Multimodal Visual Search Orchestrator", version="0.1.0", lifespan=lifespan)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["tauri://localhost", "http://tauri.localhost", "https://tauri.localhost"],
+        allow_methods=["POST"],
+        allow_headers=["Content-Type", "Accept"],
+    )
     app.state.orchestrator = orchestrator
 
     def get_orchestrator(settings: Annotated[Settings, Depends(get_settings)]) -> Orchestrator:
@@ -138,6 +146,43 @@ def create_app(orchestrator: Orchestrator | None = None) -> FastAPI:
         except Exception:
             service.progress.fail(payload.request_id, "Analysis stopped unexpectedly")
             raise
+
+    def sse(iterator: AsyncIterator[dict[str, object]]) -> StreamingResponse:
+        async def encoded() -> AsyncIterator[str]:
+            async for event in iterator:
+                event_type = str(event.get("type", "progress"))
+                yield f"event: {event_type}\ndata: {json.dumps(event, separators=(',', ':'))}\n\n"
+
+        return StreamingResponse(
+            encoded(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"}
+        )
+
+    @app.post("/api/analyze/stream")
+    async def analyze_stream(
+        image: Annotated[UploadFile, File()],
+        payload_json: Annotated[str, Form()],
+        service: Annotated[Orchestrator, Depends(get_orchestrator)],
+    ) -> StreamingResponse:
+        image_bytes = await image.read(MAX_IMAGE_BYTES + 1)
+        if not image.content_type or not image.content_type.startswith("image/"):
+            raise HTTPException(
+                status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "image must be an image file"
+            )
+        if not image_bytes or len(image_bytes) > MAX_IMAGE_BYTES:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "invalid image size")
+        try:
+            mime_type = validate_image(image_bytes)
+            payload = AnalyzePayload.model_validate(json.loads(payload_json))
+        except (InvalidImageError, json.JSONDecodeError, ValidationError) as exc:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+        return sse(service.stream_analyze(image_bytes, mime_type, payload))
+
+    @app.post("/api/chat/stream")
+    async def chat_stream(
+        payload: ChatPayload,
+        service: Annotated[Orchestrator, Depends(get_orchestrator)],
+    ) -> StreamingResponse:
+        return sse(service.stream_chat(payload))
 
     @app.get("/api/progress/{request_id}", response_model=ProgressSnapshot)
     async def progress(

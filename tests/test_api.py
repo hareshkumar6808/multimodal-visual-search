@@ -67,6 +67,42 @@ def test_api_contract_health_providers_and_analyze() -> None:
     ]
 
 
+def test_direct_ocr_and_streaming_endpoint_use_no_provider() -> None:
+    mir = MIR(
+        request_id="seed",
+        image=ImageInfo(sha256="a" * 64, width=10, height=10),
+        modalities=Modalities(text=0.98),
+        primary_modality="text",
+        ocr=OCRResult(text="Exact local OCR", confidence=0.98),
+        overall_confidence=0.98,
+    )
+    provider = MockProvider(name="local", response="must not be called")
+    service = Orchestrator(MockPerceptionAdapter(mir), RuleRouter(), ProviderRegistry([provider]))
+    client = TestClient(create_app(service))
+    payload = {
+        "request_id": "direct-ocr",
+        "query": "Extract text",
+        "context": {},
+        "route_decision": {
+            "expert": "text",
+            "leaf_route": "text/general",
+            "execution_mode": "direct",
+            "requested_tool": "return_ocr",
+        },
+    }
+    response = client.post(
+        "/api/analyze/stream",
+        files={"image": ("capture.png", PNG, "image/png")},
+        data={"payload_json": json.dumps(payload)},
+    )
+    assert response.status_code == 200
+    assert "event: start" in response.text
+    assert "event: direct_result" in response.text
+    assert "Exact local OCR" in response.text
+    assert '"api_calls":0' in response.text
+    assert provider.stats.session_requests == 0
+
+
 def test_api_rejects_non_image_upload() -> None:
     service = Orchestrator(
         MockPerceptionAdapter(),

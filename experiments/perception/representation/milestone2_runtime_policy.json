@@ -61,5 +61,17 @@
     "pixels_required_false_discard_decisions": "0/7",
     "mixed_false_discard_decisions": "0/2",
     "unnecessary_preservation_among_text_structure_proxies": "54/54"
+  },
+  "selector_benchmark": {
+    "source": "models/perception/runtime_benchmark.json",
+    "sample_count": 20,
+    "warm_repeats": 100,
+    "cold_first_inference_ms": 163.58609998133034,
+    "warm_median_ms": 15.13845002045855,
+    "warm_p95_ms": 22.970500052906573,
+    "process_working_set_before_bytes": 50360320,
+    "process_working_set_after_cold_load_bytes": 95059968,
+    "peak_working_set_bytes": 100581376,
+    "scope": "selector decode, preprocessing, and ONNX inference; no OCR"
   }
 }

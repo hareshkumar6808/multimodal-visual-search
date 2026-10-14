@@ -1,3 +1,5 @@
+import hashlib
+
 from services.orchestrator.providers.base import Provider, ProviderError
 
 
@@ -26,6 +28,7 @@ class MockProvider(Provider):
         self.response = response
         self.fail = fail
         self.received_images: list[bool] = []
+        self.received_image_sha256: list[str | None] = []
         self.prompts: list[str] = []
 
     @property
@@ -39,6 +42,9 @@ class MockProvider(Provider):
     async def _generate(self, prompt: str, image_bytes: bytes | None, mime_type: str) -> str:
         self.prompts.append(prompt)
         self.received_images.append(image_bytes is not None)
+        self.received_image_sha256.append(
+            hashlib.sha256(image_bytes).hexdigest() if image_bytes is not None else None
+        )
         if self.fail:
             raise ProviderError("planned mock failure")
         return self.response

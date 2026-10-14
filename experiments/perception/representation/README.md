@@ -52,7 +52,7 @@ These are small, single-machine measurements, not production benchmarks. Re-run 
 
 ## Research audit and integration limits
 
-The controlled comparison, validation-only class-weighting ablation, failure inspection, confidence-threshold sweep, degradation check, dataset-source review, and routing limitations are recorded in [`RESEARCH_REPORT.md`](RESEARCH_REPORT.md), with hypotheses and source/license notes in [`RESEARCH_PLAN.md`](RESEARCH_PLAN.md) and a structured log in [`experiment_log.json`](experiment_log.json). The Stage 2 selector never receives the request query and the orchestrator does not consume its representation output; keep predictions advisory and do not use them as permission to omit original pixels. The historical test split is now exposed and must not be presented as an untouched final holdout.
+The controlled comparison, validation-only class-weighting ablation, failure inspection, confidence-threshold sweep, degradation check, dataset-source review, and routing limitations are recorded in [`RESEARCH_REPORT.md`](RESEARCH_REPORT.md), with hypotheses and source/license notes in [`RESEARCH_PLAN.md`](RESEARCH_PLAN.md) and a structured log in [`experiment_log.json`](experiment_log.json). The Stage 2 selector never receives the request query. The orchestrator consumes representation metadata only to enforce conservative pixel preservation; no class authorizes omitting original pixels. See MILESTONE2_RUNTIME_AUDIT.md. The historical test split is now exposed and must not be presented as an untouched final holdout.
 
 Reproduce policy/calibration and systems evidence with:
 

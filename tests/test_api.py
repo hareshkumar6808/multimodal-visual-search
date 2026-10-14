@@ -171,7 +171,7 @@ def test_upload_size_limit_is_enforced(monkeypatch) -> None:
     assert response.status_code == 413
 
 
-def test_complete_code_flow_uses_extracted_text_without_uploading_image() -> None:
+def test_complete_code_flow_preserves_original_image_with_extracted_text() -> None:
     code = "arr = [1, 2, 3]\nprint(arr[4])"
     mir = MIR(
         request_id="original",
@@ -199,7 +199,7 @@ def test_complete_code_flow_uses_extracted_text_without_uploading_image() -> Non
     assert body["route"]["intent"] == "debug"
     assert body["route"]["expert"] == "code-expert"
     assert body["metrics"]["cloud_image_uploaded"] is False
-    assert provider.received_images == [False]
+    assert provider.received_images == [True]
     assert code in provider.prompts[0]
 
 

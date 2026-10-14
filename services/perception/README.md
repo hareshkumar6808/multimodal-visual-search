@@ -219,3 +219,7 @@ print(pipeline.last_telemetry)
 3. **Learned Classifier**: The local MobileNetV3-Small integration has limited held-out data, especially for `pixels_required` and `mixed`; do not treat it as a general-purpose screenshot classifier.
 4. **Visual Dependency Score**: The pixel-dependency prior is a classifier/heuristic score, not an information-loss estimate from token and pixel entropy.
 
+
+### Runtime representation safety policy
+
+The orchestrator consumes the optional MIR representation metadata through a conservative forwarding policy. No content-only class currently authorizes omitting pixels: the selector is not query-conditioned, and task-specific sufficiency has not been validated. For content queries, the policy sets image_required so the provider registry passes the original capture bytes to a vision-capable provider. The policy decision and reason are included in the trace. Missing MIR v0.1 metadata and visual conflicts also preserve pixels. A text-only fallback receives OCR/context and an explicit limitation prompt; it cannot inspect the image. The complete baseline-to-current path and limitations are documented in experiments/perception/representation/MILESTONE2_RUNTIME_AUDIT.md.

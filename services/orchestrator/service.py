@@ -1,4 +1,5 @@
 import logging
+from dataclasses import replace
 from time import perf_counter
 from uuid import uuid4
 
@@ -19,6 +20,7 @@ from services.orchestrator.perception import PerceptionAdapter
 from services.orchestrator.progress import ProgressStore
 from services.orchestrator.prompting import build_prompt
 from services.orchestrator.providers.registry import ProviderRegistry
+from services.orchestrator.representation_policy import decide_image_preservation
 from services.orchestrator.routing import RuleRouter
 from services.orchestrator.validation import ResponseValidationError, validate_answer
 
@@ -161,6 +163,27 @@ class Orchestrator:
 
         routing_started = perf_counter()
         expert_route = self.router.route(mir, intent)
+        image_decision = decide_image_preservation(mir, payload.query)
+        if image_decision.preserve_original and not expert_route.image_required:
+            expert_route = replace(
+                expert_route,
+                image_required=True,
+                reason_code=f"{expert_route.reason_code}_PIXELS_PRESERVED",
+            )
+        logger.info(
+            "REPRESENTATION_POLICY request_id=%s preserve_pixels=%s reason=%s",
+            payload.request_id,
+            image_decision.preserve_original,
+            image_decision.reason_code,
+        )
+        trace.append(
+            TraceEvent(
+                stage="representation_policy",
+                status="complete",
+                message=f"{image_decision.reason_code}: {image_decision.reason}",
+                confidence=(mir.representation.confidence if mir.representation else None),
+            )
+        )
         logger.info(
             "EXPERT_SELECTED request_id=%s expert=%s",
             payload.request_id,

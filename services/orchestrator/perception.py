@@ -68,7 +68,7 @@ class RealPerceptionAdapter(PerceptionAdapter):
         try:
             mir = MIR.model_validate(result)
         except ValidationError as exc:
-            raise PerceptionUnavailableError("Perception returned invalid MIR v0.1") from exc
+            raise PerceptionUnavailableError("Perception returned invalid MIR") from exc
         if mir.request_id != request_id:
             raise PerceptionUnavailableError("Perception request_id does not match request")
         return mir

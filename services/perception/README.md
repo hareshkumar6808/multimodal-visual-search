@@ -1,13 +1,19 @@
 # Context + Multimodal Perception Subsystem (`services/perception`)
 
-The **Multimodal Perception** layer is responsible for taking raw screenshot bytes and desktop context captured by the Windows desktop layer, validating image integrity, running local Optical Character Recognition (OCR), deterministically profiling content modalities, extracting basic layout elements, scanning for privacy flags, and producing a structured, canonical **Multimodal Intermediate Representation (MIR v0.1)**.
+The **Multimodal Perception** layer validates screenshot bytes, runs local OCR, profiles content modalities, extracts basic layout elements, scans for privacy flags, and emits MIR v0.2. The contract continues to accept MIR v0.1 payloads.
+
+## Stage 2: Minimum-Sufficient Representation
+
+`services/perception/representation/` defines an injectable `RepresentationSelector` interface and a deterministic `HeuristicRepresentationSelector` fallback. It emits one of `text_sufficient`, `structure_sufficient`, `pixels_required`, or `mixed`, with per-class scores, confidence, pixel-dependency prior, provenance, available representations, and local capabilities. Low confidence, weak OCR, visual content, or mixed evidence conservatively retains pixels. The result is metadata only; this stage does not delete or upload image pixels.
+
+The default selector loads a locally packaged MobileNetV3-Small classifier when its optional inference runtime and artifact are available. It never downloads weights or data at application startup. Missing, corrupt, low-confidence, or visually conflicting model results fall back to the heuristic and preserve pixels when uncertain. Training, dataset preparation, export, and benchmark scripts live under `experiments/perception/representation/` and are outside the request pipeline. The model was trained on proxy labels derived from DocLayNet document annotations; its scores are not validated as ground truth for arbitrary screenshots. See that experiment directory's README for data provenance and measured results.
 
 ---
 
 ## Technical Honesty & Scope Declarations
 
 > [!IMPORTANT]
-> - **Heuristic Profiling (Not Machine Learning)**: Modality profiling uses deterministic, transparent heuristic rules based on OCR token keywords, syntax patterns, indentation, and layout bounding boxes. **This is NOT a trained ML classifier.**
+> - **Representation Prediction Uses Proxy Labels**: The packaged MobileNetV3-Small model was trained against classes heuristically mapped from document-layout annotations. Its evaluation is limited and does not establish general screenshot performance. A conservative deterministic heuristic remains the fallback.
 > - **Basic Layout Extraction (Not Advanced Semantic Decomposition)**: Object extraction groups OCR bounding boxes into lines, approximate paragraphs, code blocks, table regions, and visual areas based on spatial geometry. **This is NOT learned semantic segmentation, object detection, or vision-language scene reasoning.**
 > - **Lightweight Privacy Scanning (Not a Privacy AI)**: Privacy detection uses conservative regex patterns for emails, phone numbers, and obvious API keys/credentials.
 > - **Stage 1 Boolean Heuristic (Not Full Visual Dependency Score)**: `visual_required` is a simple deterministic decision rule. **This is NOT the full future Visual Dependency Score, Minimum Sufficient Modality, or Loss-Aware Modality Compression.**
@@ -50,18 +56,18 @@ Screenshot Bytes (PNG/JPEG/WebP/BMP) + Context (active_app, window_title, bounds
           False if clean structured text/code/table)
                            │
                            ▼
-              7. Canonical MIR v0.1 Output
+              7. MIR v0.2 with optional representation metadata
 ```
 
 ---
 
-## Canonical MIR v0.1 Schema
+## MIR Schema Compatibility
 
-The subsystem outputs a strictly JSON-serializable structure matching canonical Stage 1 MIR v0.1:
+The subsystem outputs JSON-serializable MIR v0.2. Existing MIR v0.1 payloads remain valid; `representation` is optional so older callers and fixtures continue to validate. The additional field has this shape:
 
 ```json
 {
-  "mir_version": "0.1",
+  "mir_version": "0.2",
   "request_id": "req-12345",
   "image": {
     "sha256": "3a7b9c...",
@@ -111,7 +117,22 @@ The subsystem outputs a strictly JSON-serializable structure matching canonical 
   ],
   "visual_required": false,
   "privacy_flags": [],
-  "overall_confidence": 0.94
+  "overall_confidence": 0.94,
+  "representation": {
+    "kind": "structure_sufficient",
+    "scores": {
+      "text_sufficient": 0.86,
+      "structure_sufficient": 0.90,
+      "pixels_required": 0.10,
+      "mixed": 0.00
+    },
+    "confidence": 0.94,
+    "pixel_dependency_prior": 0.10,
+    "source": "heuristic",
+    "model": null,
+    "available_representations": ["pixels", "ocr_text", "layout"],
+    "local_capabilities": {"ocr": true, "layout": true, "ml_model": false}
+  }
 }
 ```
 
@@ -142,7 +163,7 @@ from services.perception import analyze_capture
 # Synchronous call
 mir_dict = analyze_capture(image_bytes, context={"active_app": "Code"})
 
-# Returns a standard, fully JSON-serializable dictionary matching MIR v0.1
+# Returns a standard, fully JSON-serializable dictionary matching MIR v0.2
 ```
 
 Or instantiate a standalone pipeline:
@@ -195,6 +216,10 @@ print(pipeline.last_telemetry)
 
 1. **OCR Dependent on Font Size & DPI**: Extremely small or stylized typography on high-DPI displays may yield low OCR confidence. Future work should add multi-scale image pyramid OCR pre-processing.
 2. **Heuristic Collision**: Code comments containing extensive natural language prose may slightly elevate text scores.
-3. **Future Learned Classifier (Phase 2/3)**: Stage 1 deliberately avoids machine learning to ensure 100% deterministic local predictability. In Phase 2/3, a lightweight quantized local vision model (e.g. MobileNet / FastViT) will be evaluated against this deterministic baseline.
-4. **Visual Dependency Score**: Phase 2 will introduce an information-loss estimation metric comparing tokenized text entropy with image pixel entropy.
+3. **Learned Classifier**: The local MobileNetV3-Small integration has limited held-out data, especially for `pixels_required` and `mixed`; do not treat it as a general-purpose screenshot classifier.
+4. **Visual Dependency Score**: The pixel-dependency prior is a classifier/heuristic score, not an information-loss estimate from token and pixel entropy.
 
+
+### Runtime representation safety policy
+
+The orchestrator consumes the optional MIR representation metadata through a conservative forwarding policy. No content-only class currently authorizes omitting pixels: the selector is not query-conditioned, and task-specific sufficiency has not been validated. For content queries, the policy sets image_required so the provider registry passes the original capture bytes to a vision-capable provider. The policy decision and reason are included in the trace. Missing MIR v0.1 metadata and visual conflicts also preserve pixels. A text-only fallback receives OCR/context and an explicit limitation prompt; it cannot inspect the image. The complete baseline-to-current path and limitations are documented in experiments/perception/representation/MILESTONE2_RUNTIME_AUDIT.md.

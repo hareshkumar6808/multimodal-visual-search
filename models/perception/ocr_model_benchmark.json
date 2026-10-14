@@ -1,0 +1,25 @@
+{
+  "device": "cpu",
+  "measurements": 60,
+  "model_only_ms": {
+    "median": 19.82220000354573,
+    "p95": 38.8834000332281
+  },
+  "note": "Warm model, same held-out local images; includes thread submission and joins.",
+  "ocr_engine": "TesseractOCREngine",
+  "ocr_only_ms": {
+    "median": 1415.1498500141315,
+    "p95": 2429.165399982594
+  },
+  "parallel_ms": {
+    "median": 1546.2783999973908,
+    "p95": 2544.8776999255642
+  },
+  "parallel_speedup": 0.926486136031125,
+  "repeats_per_sample": 3,
+  "sample_count": 20,
+  "sequential_ms": {
+    "median": 1432.6055000419728,
+    "p95": 2473.9147999789566
+  }
+}

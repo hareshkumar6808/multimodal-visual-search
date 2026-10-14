@@ -1,0 +1,28 @@
+{
+  "added_overhead_ms": {
+    "count": 150,
+    "median": 11.332799796946347,
+    "p95": 19.644599873572588
+  },
+  "added_overhead_percent_of_controlled_baseline_median": 68.03809792060207,
+  "backend": "onnxruntime",
+  "method": "paired controlled pipeline benchmark",
+  "repeats_per_sample": 5,
+  "sample_count": 30,
+  "scope": "Both paths use identical deterministic zero-I/O OCR. The baseline emits a constant pixel-preserving representation only to satisfy MIR v0.2. This isolates learned selector cost and is not an end-to-end OCR latency claim.",
+  "stage1_equivalent_total_ms": {
+    "count": 150,
+    "median": 16.656549996696413,
+    "p95": 24.39019992016256
+  },
+  "stage2_representation_telemetry_ms": {
+    "count": 150,
+    "median": 11.0,
+    "p95": 18.0
+  },
+  "stage2_total_ms": {
+    "count": 150,
+    "median": 28.59165007248521,
+    "p95": 43.0182998534292
+  }
+}

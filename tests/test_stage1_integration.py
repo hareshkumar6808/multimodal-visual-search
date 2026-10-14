@@ -40,7 +40,6 @@ def integrated_client(
     monkeypatch: pytest.MonkeyPatch,
     text: str,
     *,
-    vision: bool = False,
     cloud: bool = False,
 ) -> tuple[TestClient, MockProvider]:
     monkeypatch.setattr(
@@ -48,7 +47,7 @@ def integrated_client(
         "_DEFAULT_PIPELINE",
         PerceptionPipeline(ocr_engine=StaticOCREngine(text)),
     )
-    provider = MockProvider(name="gemini" if cloud else "local", vision=vision, is_cloud=cloud)
+    provider = MockProvider(name="gemini" if cloud else "local", vision=True, is_cloud=cloud)
     service = Orchestrator(
         RealPerceptionAdapter("services.perception"),
         RuleRouter(),
@@ -98,8 +97,7 @@ def test_real_perception_to_router_textual_routes(
     expected_modality: str,
     expected_expert: str,
 ) -> None:
-    image_required = expected_modality == "chart"
-    client, provider = integrated_client(monkeypatch, text, vision=image_required)
+    client, provider = integrated_client(monkeypatch, text)
     response = client.post(
         "/api/analyze",
         files={"image": ("capture.png", png_bytes(), "image/png")},
@@ -119,11 +117,11 @@ def test_real_perception_to_router_textual_routes(
     assert body["mir_summary"]["primary_modality"] == expected_modality
     assert body["route"]["expert"] == expected_expert
     assert body["metrics"]["cloud_image_uploaded"] is False
-    assert provider.received_images == [image_required]
+    assert provider.received_images == [True]
 
 
 def test_real_perception_visual_route_forwards_pixels(monkeypatch: pytest.MonkeyPatch) -> None:
-    client, provider = integrated_client(monkeypatch, "", vision=True, cloud=True)
+    client, provider = integrated_client(monkeypatch, "", cloud=True)
     response = client.post(
         "/api/analyze",
         files={"image": ("photo.png", png_bytes(), "image/png")},

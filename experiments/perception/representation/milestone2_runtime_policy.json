@@ -1,0 +1,77 @@
+{
+  "milestone": "stage2-milestone-2-runtime-representation-safety",
+  "baseline_commit": "4ed5a9c8860826790b1f20f524974d482024af1b",
+  "reproduction": {
+    "command": "python experiments/perception/representation/evaluate_policy.py --split validation",
+    "split": "DocLayNet-small official validation; exposed during prior tuning, diagnostic only",
+    "sample_count": 63,
+    "proxy_class_support": {
+      "text_sufficient": 30,
+      "structure_sufficient": 24,
+      "pixels_required": 7,
+      "mixed": 2
+    },
+    "raw_model": {
+      "accuracy": 0.6190476190476191,
+      "correct": 39,
+      "macro_f1": 0.5250954719039825,
+      "critical_false_discard": {"count": 3, "support": 9}
+    },
+    "baseline_composed_selector": {
+      "accuracy": 0.42857142857142855,
+      "correct": 27,
+      "macro_f1": 0.37650375939849623,
+      "critical_false_discard": {"count": 2, "support": 9}
+    },
+    "baseline_stage1_visual_required_false_on_critical_proxies": {
+      "count": 5,
+      "support": 9
+    },
+    "updated_local_perception_latency_ms": {
+      "sample_count": 63,
+      "median": 1536.4027000032365,
+      "p95": 2784.6790000330657,
+      "scope": "preflight, OCR, profiling, extraction, selector; excludes orchestrator and provider"
+    }
+  },
+  "policy": {
+    "preserves_pixels_for_all_four_representation_classes": true,
+    "legacy_mir_v01_without_representation_preserves_pixels": true,
+    "actual_original_payload_sha256_verified_at_mock_vision_provider": true,
+    "reduction_authorized": false,
+    "reason": "No validated query-conditioned representation-sufficiency labels or answer-equivalence benchmark."
+  },
+  "model_or_data_changes": "none",
+  "evidence_limit": "Validation labels are layout-derived proxies, not task-sufficiency ground truth; historical validation is diagnostic, not an independent final holdout.",
+  "verification": {
+    "pytest": "155 passed; 1 existing Starlette/httpx deprecation warning",
+    "ruff": "All checks passed",
+    "mypy": "Strict mode; 43 source files; no issues",
+    "wheel": {
+      "size_bytes": 11442248,
+      "sha256": "e2afa123513bd6214f757b2950f45871dc526b1a4d3b2efe86e6f1896689312c",
+      "includes_policy_and_models": true
+    },
+    "runtime_data_or_weight_downloads": 0
+  },
+  "policy_rule_implication": {
+    "status": "derived from unconditional policy, not a separate measured holdout run",
+    "validation_total_preserved": "63/63",
+    "critical_proxy_false_discard_decisions": "0/9",
+    "pixels_required_false_discard_decisions": "0/7",
+    "mixed_false_discard_decisions": "0/2",
+    "unnecessary_preservation_among_text_structure_proxies": "54/54"
+  },
+  "selector_benchmark": {
+    "source": "models/perception/runtime_benchmark.json",
+    "sample_count": 20,
+    "warm_repeats": 100,
+    "cold_first_inference_ms": 163.58609998133034,
+    "warm_median_ms": 15.13845002045855,
+    "warm_p95_ms": 22.970500052906573,
+    "process_working_set_before_bytes": 50360320,
+    "process_working_set_after_cold_load_bytes": 95059968,
+    "peak_working_set_bytes": 100581376,
+    "scope": "selector decode, preprocessing, and ONNX inference; no OCR"
+  }
+}

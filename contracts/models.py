@@ -5,6 +5,9 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Modality = Literal["text", "code", "table", "chart", "image", "mixed"]
+RepresentationKind = Literal[
+    "text_sufficient", "structure_sufficient", "pixels_required", "mixed"
+]
 Intent = Literal[
     "explain",
     "identify",
@@ -76,6 +79,30 @@ class OCRResult(BaseModel):
     regions: list[dict[str, Any]] = Field(default_factory=list)
 
 
+class RepresentationScores(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text_sufficient: float = Field(default=0, ge=0, le=1)
+    structure_sufficient: float = Field(default=0, ge=0, le=1)
+    pixels_required: float = Field(default=0, ge=0, le=1)
+    mixed: float = Field(default=0, ge=0, le=1)
+
+
+class RepresentationInfo(BaseModel):
+    """Stage 2 minimum-sufficient representation decision and provenance."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: RepresentationKind
+    scores: RepresentationScores
+    confidence: float = Field(ge=0, le=1)
+    pixel_dependency_prior: float = Field(ge=0, le=1)
+    source: str = "heuristic"
+    model: str | None = None
+    available_representations: list[str] = Field(default_factory=list)
+    local_capabilities: dict[str, bool] = Field(default_factory=dict)
+
+
 class OCRRegion(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -98,7 +125,7 @@ class ExtractedObject(BaseModel):
 class MIR(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    mir_version: Literal["0.1"] = "0.1"
+    mir_version: Literal["0.1", "0.2"] = "0.1"
     request_id: str
     image: ImageInfo
     context: dict[str, Any] = Field(default_factory=dict)
@@ -109,6 +136,7 @@ class MIR(BaseModel):
     visual_required: bool = False
     privacy_flags: list[str] = Field(default_factory=list)
     overall_confidence: float = Field(ge=0, le=1)
+    representation: RepresentationInfo | None = None
 
     @model_validator(mode="after")
     def request_matches(self) -> MIR:

@@ -1,5 +1,6 @@
 .env
 .venv/
+dist/
 venv/
 __pycache__/
 *.py[cod]
@@ -11,3 +12,5 @@ apps/desktop/.npm-cache/
 apps/desktop/node_modules/
 apps/desktop/dist/
 apps/desktop/src-tauri/target/
+/artifacts/perception/dataset/
+/artifacts/perception/cache/

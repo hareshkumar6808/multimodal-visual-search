@@ -1,0 +1,39 @@
+{
+  "backend": "onnxruntime",
+  "cold_first_inference_ms": 135.98919985815883,
+  "decision_gate_overhead_estimate_ms": {
+    "median_paired_difference": 0.07684994488954544,
+    "p95_paired_difference": 2.424499951303005,
+    "scope": "selector.select minus score_image; paired run order may add CPU scheduling noise"
+  },
+  "device": "cpu",
+  "model_id": "mobilenet_v3_small_onnxruntime:965b75a574ab3489",
+  "process_memory_bytes": {
+    "after_cold_load_and_inference": {
+      "pagefile_usage": 621580288,
+      "peak_pagefile_usage": 625823744,
+      "peak_working_set": 158158848,
+      "working_set": 152834048
+    },
+    "before_selector_load": {
+      "pagefile_usage": 589631488,
+      "peak_pagefile_usage": 589631488,
+      "peak_working_set": 112832512,
+      "working_set": 112832512
+    },
+    "limitation": "process working set includes Python, Pillow, and ONNX Runtime; not an isolated model allocation"
+  },
+  "sample_count": 30,
+  "scope": "selector inference includes image decode, resize, normalization, and backend inference; excludes OCR",
+  "warm_inference_ms": {
+    "count": 200,
+    "median": 11.26115012448281,
+    "p95": 17.040099948644638
+  },
+  "warm_repeats": 200,
+  "warm_selector_decision_ms": {
+    "count": 200,
+    "median": 11.239950079470873,
+    "p95": 17.672100104391575
+  }
+}

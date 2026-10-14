@@ -104,7 +104,13 @@ def test_analyze_capture_convenience_function() -> None:
     )
 
     assert isinstance(mir_dict, dict)
-    assert mir_dict["mir_version"] == "0.1"
+    assert mir_dict["mir_version"] == "0.2"
+    assert mir_dict["representation"]["kind"] in {
+        "text_sufficient",
+        "structure_sufficient",
+        "pixels_required",
+        "mixed",
+    }
     assert mir_dict["request_id"] == "convenience-test"
     assert "image" in mir_dict
     assert "aspect_ratio" not in mir_dict["image"]

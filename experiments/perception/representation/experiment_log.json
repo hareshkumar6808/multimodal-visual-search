@@ -1,0 +1,190 @@
+{
+  "schema_version": 1,
+  "purpose": "Research log for the local representation classifier. Dataset labels are layout-derived proxies, not task-sufficiency ground truth.",
+  "baseline_commit": "d60e5b3c283c227898f9b164a96bf800b3a3b4e9",
+  "environment": {
+    "python": "3.12.10",
+    "platform": "Windows 11 10.0.26200",
+    "logical_cpus": 16,
+    "reported_memory_bytes": 16909131776,
+    "cuda_available": false,
+    "torch": "2.14.1+cpu",
+    "torchvision": "0.29.1+cpu"
+  },
+  "dataset": {
+    "name": "pierreguillou/DocLayNet-small",
+    "revision": "389e375",
+    "version": "DocLayNet 1.1.0 small subset",
+    "license": "Upstream CDLA-Permissive-1.0; mirror metadata states other",
+    "official_splits": {
+      "source_pages": {"train": 691, "validation": 64, "test": 49},
+      "labeled_pages": {"train": 688, "validation": 63, "test": 49},
+      "class_order": ["text_sufficient", "structure_sufficient", "pixels_required", "mixed"],
+      "counts": {
+        "train": [224, 350, 102, 12],
+        "validation": [30, 24, 7, 2],
+        "test": [14, 30, 4, 1]
+      }
+    },
+    "split_identifier": "source official train/val/test; source document filename groups checked disjoint",
+    "label_limit": "Heuristic mappings from layout annotations, not human sufficiency labels"
+  },
+  "experiments": [
+    {
+      "id": "PILOT-01",
+      "hypothesis": "Verify the transfer-learning and metric pipeline on a single short end-to-end run.",
+      "architecture": "MobileNetV3-Small pretrained, 224x224, class-weighted loss",
+      "seed": 1729,
+      "change_from_baseline": "One-epoch pipeline pilot before the selected eight-epoch run",
+      "training_seconds": 26.71,
+      "hardware": "Windows 11 CPU-only host",
+      "evaluation_split": "historical test, now exposed and diagnostic",
+      "metrics": {"accuracy": 0.653, "macro_f1": 0.424, "pixels_required_false_discard": "3/4"},
+      "safety_errors": "Three of four pixels-required proxy pages predicted as a cheaper class.",
+      "runtime_measurements": null,
+      "decision": "Pipeline smoke run only; not a candidate model. This use is included to disclose historical test exposure."
+    },
+    {
+      "id": "BASE-01",
+      "hypothesis": "Reproduce the existing learned baseline before modifying it.",
+      "architecture": "MobileNetV3-Small pretrained on ImageNet, 224x224, AdamW, class-weighted cross-entropy",
+      "seed": 1729,
+      "change_from_baseline": "None; committed checkpoint and script reproduced",
+      "training_seconds": 384.1686815,
+      "hardware": "Windows 11 CPU, 16 logical CPUs, no CUDA, torch 2.14.1+cpu",
+      "evaluation_split": "historical source test; previously consulted, diagnostic only",
+      "metrics": {
+        "accuracy": 0.8163265,
+        "macro_precision": 0.6577381,
+        "macro_recall": 0.7785714,
+        "macro_f1": 0.6968391,
+        "per_class_f1": [0.6896552, 0.9310345, 0.5, 0.6666667],
+        "confusion_matrix_rows_true": [[10, 1, 2, 1], [3, 27, 0, 0], [2, 0, 2, 0], [0, 0, 0, 1]],
+        "false_pixel_discard": {"pixels_required": "2/4", "mixed": "0/1"}
+      },
+      "safety_errors": [
+        {"page_hash_prefix": "009e97e9c901", "label": "pixels_required", "prediction": "text_sufficient", "confidence": 0.9922, "inspection": "large phone and portrait on magazine page"},
+        {"page_hash_prefix": "d018b7e45841", "label": "pixels_required", "prediction": "text_sufficient", "confidence": 0.777, "inspection": "aviation chart with route markings"}
+      ],
+      "runtime_measurements": "See onnx_comparison.json, ocr_model_benchmark.json, and runtime_benchmark.json.",
+      "decision": "Retain as baseline artifact; false pixel-discard 2/4 and tiny critical support do not support safe reduction."
+    },
+    {
+      "id": "POLICY-01",
+      "hypothesis": "Independent OCR/layout signals may catch raw model errors.",
+      "architecture": "Existing ONNX MobileNet plus Tesseract and existing deterministic heuristic gate",
+      "seed": 1729,
+      "change_from_baseline": "No model changes; evaluate identical samples using raw, heuristic, and composed predictions",
+      "training_seconds": null,
+      "hardware": "Windows 11 CPU, 16 logical CPUs, ONNX Runtime CPU and local Tesseract",
+      "evaluation_split": "validation 63; historical test 49 diagnostic",
+      "metrics": {
+        "validation": {
+          "raw": {"accuracy": "39/63", "macro_f1": 0.5251, "critical_errors": "3/9"},
+          "heuristic": {"accuracy": "21/63", "macro_f1": 0.2393, "critical_errors": "5/9"},
+          "composed": {"accuracy": "27/63", "macro_f1": 0.3765, "critical_errors": "2/9"}
+        },
+        "historical_test": {
+          "raw": {"accuracy": "40/49", "macro_f1": 0.6968, "critical_errors": "2/5"},
+          "heuristic": {"accuracy": "10/49", "macro_f1": 0.1316, "critical_errors": "3/5"},
+          "composed": {"accuracy": "25/49", "macro_f1": 0.4006, "critical_errors": "0/5"}
+        }
+      },
+      "safety_errors": "Two validation critical pages were high-confidence text_sufficient and visual_required=false; supports are only 7 pixels_required and 2 mixed.",
+      "runtime_measurements": "Full pipeline validation median 1506 ms / p95 2437 ms; test median 1496 ms / p95 2376 ms, includes OCR.",
+      "decision": "Existing heuristic conflict gate helps but is not a sufficient safety guarantee; model output must not authorize pixel deletion."
+    },
+    {
+      "id": "CAL-01",
+      "hypothesis": "Max-softmax confidence may support conservative abstention.",
+      "architecture": "Existing weighted MobileNetV3-Small",
+      "seed": 1729,
+      "change_from_baseline": "Validation-only calibration metrics and confidence-threshold sweep; no parameter fitting",
+      "training_seconds": null,
+      "hardware": "Same CPU evaluation host",
+      "evaluation_split": "validation 63 only",
+      "metrics": {"top_confidence_ece_10_bin": 0.2568249, "multiclass_brier": 0.6275419, "confidence_error_overlap": "mean 0.829 correct vs 0.831 incorrect; median 0.858 vs 0.901"},
+      "safety_errors": "At threshold .99, 0/9 critical errors but 57/63 abstained and 48/54 text/structure cases were unnecessarily preserved; one incorrect case confidence 0.9920.",
+      "runtime_measurements": "Threshold computation over stored validation scores; negligible relative to inference, not separately timed.",
+      "decision": "Do not adopt threshold .99; small proxy set and extreme preserve rate do not establish useful calibration."
+    },
+    {
+      "id": "LOSS-01",
+      "hypothesis": "Class-weighted loss may trade majority-class accuracy for rare proxy-class recall.",
+      "architecture": "Same MobileNetV3-Small, ImageNet initialization, 224x224, AdamW; only class weighting disabled",
+      "seed": 1729,
+      "change_from_baseline": "No class weighting; same train/validation, batch 16, 8 epochs; validation checkpoint selection; test evaluation disabled",
+      "training_seconds": 235.9957087,
+      "hardware": "Windows 11 CPU, 16 logical CPUs, no CUDA, torch 2.14.1+cpu",
+      "evaluation_split": "validation 63 only; historical test was not run",
+      "metrics": {
+        "raw_accuracy": 0.6666667,
+        "raw_macro_f1": 0.5487546,
+        "raw_critical_errors": "3/9",
+        "composed_accuracy": 0.4285714,
+        "composed_macro_f1": 0.3714,
+        "composed_critical_errors": "2/9",
+        "weighted_composed_macro_f1": 0.3765,
+        "weighted_composed_critical_errors": "2/9"
+      },
+      "safety_errors": "Same composed critical count; no improvement in pixel-safety errors. One seed, only 2 mixed validation pages.",
+      "runtime_measurements": "Not separately benchmarked; same architecture and preprocessing.",
+      "decision": "Reject candidate and retain weighted baseline; raw macro F1 gain is small and did not improve composed safety or macro F1."
+    },
+    {
+      "id": "ROBUST-01",
+      "hypothesis": "Image degradation may change content-only model predictions.",
+      "architecture": "Existing weighted MobileNetV3-Small, ONNX Runtime CPU",
+      "seed": 1729,
+      "change_from_baseline": "Native JPEG quality 40 and quarter-resolution downsample/upscale then JPEG quality 40",
+      "training_seconds": null,
+      "hardware": "Same CPU evaluation host",
+      "evaluation_split": "validation 63; fixed layout proxy labels; model-only perturbation, OCR unchanged/not rerun",
+      "metrics": {
+        "native_jpeg_q40": {"accuracy": "39/63", "macro_f1": 0.5113, "prediction_agreement": "61/63", "critical_errors": "3/9"},
+        "quarter_resolution_jpeg_q40": {"accuracy": "38/63", "macro_f1": 0.4770, "prediction_agreement": "53/63", "pixels_required_false_discard": "2/7"}
+      },
+      "safety_errors": "The quarter-resolution perturbation increases pixels-required proxy misses from 1/7 to 2/7.",
+      "runtime_measurements": "Included in local evaluator; no separate timing claim.",
+      "decision": "Report as deterministic sensitivity only; no training or policy change."
+    },
+    {
+      "id": "SYS-01",
+      "hypothesis": "ONNX Runtime CPU remains a practical compact local inference backend.",
+      "architecture": "Existing ONNX and PyTorch artifacts",
+      "seed": null,
+      "change_from_baseline": "100 warm ONNX selector calls on 20 validation images; fresh process cold start",
+      "training_seconds": null,
+      "hardware": "Windows 11 CPU-only host",
+      "evaluation_split": "validation images, timing only",
+      "metrics": {"artifact_bytes_onnx": 6097447, "artifact_bytes_pytorch": 6212245, "argmax_agreement": "20/20", "max_probability_difference": 0.00000603497},
+      "safety_errors": null,
+      "runtime_measurements": {"cold_first_inference_ms": 141.7746, "warm_median_ms": 14.27065, "warm_p95_ms": 22.4544, "working_set_before_bytes": 50044928, "working_set_after_bytes": 94404608, "peak_working_set_bytes": 100618240},
+      "decision": "Keep ONNX: parity and prior 10.58x isolated inference speedup support it; memory figures include runtime/Python, and wheel portability remains unverified."
+    }
+  ],
+  "report_files": [
+    "models/perception/evaluation.json",
+    "models/perception/research_validation.json",
+    "models/perception/research_unweighted_validation.json",
+    "models/perception/research_test_diagnostic.json",
+    "models/perception/onnx_comparison.json",
+    "models/perception/ocr_model_benchmark.json",
+    "models/perception/runtime_benchmark.json"
+  ],
+  "unmeasured": [
+    "Unseen-domain OOD performance",
+    "Query-conditioned answer sufficiency",
+    "Near-duplicate perceptual-image checks",
+    "Repeated-seed variation",
+    "A meaningful independent screenshot test set",
+    "Installation-level wheel and dependency-footprint verification"
+  ],
+  "final_fallback_policy": {
+    "model_load_failure": "pixels_required, heuristic provenance, pixel dependency prior 1.0",
+    "invalid_or_nonfinite_probabilities": "pixels_required via heuristic fallback",
+    "preprocessing_or_inference_exception": "pixels_required via heuristic fallback",
+    "successful_but_uncertain_or_visual_conflict": "existing selector confidence and heuristic-conflict policy applies",
+    "query_conditioned_sufficiency": "not available in current perception selector; no output class authorizes destructive pixel removal"
+  }
+}

@@ -1,5 +1,4 @@
-"""Perception pipeline coordinating image pre-flight, local OCR, profiling,
-object extraction, privacy scanning, visual dependency, and canonical MIR v0.1.
+"""Perception pipeline coordinating local extraction and canonical MIR v0.2.
 """
 
 from __future__ import annotations
@@ -16,6 +15,12 @@ from services.perception.ocr.factory import get_default_ocr_engine
 from services.perception.preflight import validate_and_extract_metadata
 from services.perception.privacy import scan_privacy
 from services.perception.profiling import profile_multimodal
+from services.perception.representation import (
+    HeuristicRepresentationSelector,
+    MobileNetV3SmallSelector,
+    RepresentationSelector,
+    preserve_pixels_on_failure,
+)
 from services.perception.visual_dependency import evaluate_visual_required
 
 logger = logging.getLogger(__name__)
@@ -28,8 +33,13 @@ class PerceptionPipeline:
         self,
         ocr_engine: OCREngine | None = None,
         tesseract_path: str | None = None,
+        representation_selector: RepresentationSelector | None = None,
     ) -> None:
         self.ocr_engine = ocr_engine or get_default_ocr_engine(tesseract_path=tesseract_path)
+        self.representation_selector = (
+            representation_selector or MobileNetV3SmallSelector()
+        )
+        self._fallback_selector = HeuristicRepresentationSelector()
         self.last_telemetry: dict[str, int] = {}
 
     def analyze(
@@ -38,7 +48,7 @@ class PerceptionPipeline:
         context: dict[str, Any] | None = None,
         request_id: str | None = None,
     ) -> MIR:
-        """Process screenshot bytes and context into a canonical MIR v0.1 model."""
+        """Process screenshot bytes and context into a backwards-compatible MIR v0.2."""
         start_time = time.perf_counter()
         req_id = request_id.strip() if request_id and request_id.strip() else uuid.uuid4().hex
         ctx = dict(context or {})
@@ -93,6 +103,31 @@ class PerceptionPipeline:
             objects,
         )
 
+        # The learned output is an injectable, advisory classification. On an
+        # exception the heuristic fallback explicitly preserves original pixels.
+        representation_start = time.perf_counter()
+        try:
+            representation = self.representation_selector.select(
+                modalities,
+                primary_modality,
+                overall_confidence,
+                ocr_result,
+                visual_required,
+                image_bytes,
+            )
+        except Exception:
+            logger.exception("representation_selection_failed_using_heuristic")
+            fallback = self._fallback_selector.select(
+                modalities,
+                primary_modality,
+                overall_confidence,
+                ocr_result,
+                visual_required,
+                image_bytes,
+            )
+            representation = preserve_pixels_on_failure(fallback)
+        representation_ms = int((time.perf_counter() - representation_start) * 1000)
+
         total_ms = int((time.perf_counter() - start_time) * 1000)
         self.last_telemetry = {
             "preflight_ms": preflight_ms,
@@ -101,12 +136,13 @@ class PerceptionPipeline:
             "profiling_ms": profiling_ms,
             "extraction_ms": extraction_ms,
             "privacy_ms": privacy_ms,
+            "representation_ms": representation_ms,
             "total_pipeline_ms": total_ms,
         }
 
-        # 7. Assemble Canonical MIR v0.1
+        # 7. Assemble canonical MIR v0.2 (v0.1 remains accepted by the contract).
         return MIR(
-            mir_version="0.1",
+            mir_version="0.2",
             request_id=req_id,
             image=preflight.to_image_info(),
             context=ctx,
@@ -117,4 +153,5 @@ class PerceptionPipeline:
             visual_required=visual_required,
             privacy_flags=privacy_flags,
             overall_confidence=overall_confidence,
+            representation=representation,
         )

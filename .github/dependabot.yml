@@ -1,0 +1,26 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 1
+    groups:
+      routine-python:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: npm
+    directory: "/apps/desktop"
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 1
+    groups:
+      routine-desktop:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: cargo
+    directory: "/apps/desktop/src-tauri"
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 1
+    groups:
+      routine-rust:
+        patterns: ["*"]
+        update-types: [minor, patch]

@@ -7,8 +7,9 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $ctx = Get-Stage2Context $root
 New-Item -ItemType Directory -Force $ctx.StateDir, $ctx.LogDir | Out-Null
 & (Join-Path $PSScriptRoot "stop-stage2.ps1") -Quiet
+Stop-StaleStage2Backend
 
-foreach ($port in @(8765, 11434, 1420)) {
+foreach ($port in @(8768, 11434, 1420)) {
     $listeners = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
     if ($listeners) { throw "Port $port is already occupied by PID $($listeners[0].OwningProcess). Stop that process or the older project launcher first." }
 }
@@ -23,6 +24,7 @@ $env:TESSERACT_CMD = Find-Stage2Tesseract $ctx
 $env:LOCAL_BASE_URL = "http://127.0.0.1:11434/v1"
 $env:LOCAL_MODEL = "qwen2.5-3b-instruct"
 $env:LOCAL_SUPPORTS_VISION = "false"
+$env:PROVIDER_TIMEOUT_SECONDS = "10"
 Set-Stage2RustEnvironment $ctx | Out-Null
 Set-Stage2NodeEnvironment $ctx
 
@@ -41,13 +43,13 @@ Wait-Stage2Endpoint "local Qwen" "http://127.0.0.1:11434/health" 240
 
 Write-Host "Starting Stage 2 backend..."
 $backend = Start-Process $python -WorkingDirectory $root -WindowStyle Hidden -PassThru `
-    -ArgumentList @("-m", "uvicorn", "services.orchestrator.main:app", "--host", "127.0.0.1", "--port", "8765") `
+    -ArgumentList @("-m", "uvicorn", "services.orchestrator.main:app", "--host", "127.0.0.1", "--port", "8768") `
     -RedirectStandardOutput (Join-Path $ctx.LogDir "backend.out.log") `
     -RedirectStandardError (Join-Path $ctx.LogDir "backend.err.log")
 Save-Stage2Process $ctx "backend" $backend
-Wait-Stage2Endpoint "Stage 2 backend" "http://127.0.0.1:8765/api/health" 120
+Wait-Stage2Backend 120
 
-$providers = Invoke-RestMethod "http://127.0.0.1:8765/api/providers" -TimeoutSec 5
+$providers = Invoke-RestMethod "http://127.0.0.1:8768/api/providers" -TimeoutSec 5
 $ready = $providers | Where-Object { $_.configured -and $_.available } | Select-Object -First 1
 if (-not $ready) { throw "Backend is healthy but no provider is ready." }
 Write-Host "[ready] AI provider: $($ready.name)"

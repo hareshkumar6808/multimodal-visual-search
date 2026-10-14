@@ -56,14 +56,14 @@ describe("analyzeCapture", () => {
 
   it("delivers initial response chunks through the native IPC channel", async () => {
     const events: string[] = [];
-    invoke.mockImplementation(async (_command, args) => {
-      (args.onEvent as { onmessage?: (message: { type: string; text?: string }) => void }).onmessage?.({
-        type: "delta",
-        text: "hello",
-      });
-      return response;
-    });
-    await analyzeCapture("capture-123", payload, (event) => events.push(event.text ?? ""));
+    let finish!: (value: AnalyzeResponse) => void;
+    invoke.mockReturnValue(new Promise<AnalyzeResponse>((resolve) => { finish = resolve; }));
+    const pending = analyzeCapture("capture-123", payload, (event) => events.push(event.text ?? ""));
+    const call = invoke.mock.calls.find(([command]) => command === "analyze_capture");
+    const args = call?.[1] as { onEvent: { onmessage?: (message: { type: string; text?: string }) => void } };
+    args.onEvent.onmessage?.({ type: "delta", text: "hello" });
+    finish(response);
+    await pending;
     expect(events).toEqual(["hello"]);
   });
 

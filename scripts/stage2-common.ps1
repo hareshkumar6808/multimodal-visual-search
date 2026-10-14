@@ -53,6 +53,48 @@ function Wait-Stage2Endpoint {
     }
 }
 
+function Stop-StaleStage2Backend {
+    $listeners = @(Get-NetTCPConnection -LocalPort 8768 -State Listen -ErrorAction SilentlyContinue)
+    if (-not $listeners) { return }
+
+    try {
+        $spec = Invoke-RestMethod "http://127.0.0.1:8768/openapi.json" -TimeoutSec 3
+    } catch {
+        throw "Port 8768 is occupied by an unknown service (PID $($listeners[0].OwningProcess))."
+    }
+    if ($spec.info.title -ne "Multimodal Visual Search Orchestrator") {
+        throw "Port 8768 is occupied by another service (PID $($listeners[0].OwningProcess))."
+    }
+
+    $pids = $listeners | Select-Object -ExpandProperty OwningProcess -Unique
+    foreach ($processId in $pids) {
+        & taskkill.exe /PID $processId /T /F 2>$null | Out-Null
+    }
+    foreach ($attempt in 1..20) {
+        if (-not (Get-NetTCPConnection -LocalPort 8768 -State Listen -ErrorAction SilentlyContinue)) { return }
+        Start-Sleep -Milliseconds 250
+    }
+    throw "The older Visual Search backend on port 8768 could not be stopped."
+}
+
+function Wait-Stage2Backend {
+    param([int]$Attempts = 120)
+    foreach ($attempt in 1..$Attempts) {
+        try {
+            $health = Invoke-RestMethod "http://127.0.0.1:8768/api/health" -TimeoutSec 3
+            $spec = Invoke-RestMethod "http://127.0.0.1:8768/openapi.json" -TimeoutSec 3
+            if ($health.status -and $spec.paths.'/api/analyze/stream') {
+                Write-Host "[ready] Stage 2 backend"
+                return
+            }
+        } catch {
+            if ($attempt -eq $Attempts) { throw "Stage 2 backend did not become ready: $($_.Exception.Message)" }
+        }
+        if ($attempt -eq $Attempts) { throw "Backend is running but does not provide the Stage 2 streaming API." }
+        Start-Sleep -Milliseconds 500
+    }
+}
+
 function Set-Stage2RustEnvironment {
     param($Context)
     $tools = Join-Path $Context.AssetRoot ".tools"

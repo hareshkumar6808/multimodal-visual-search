@@ -19,7 +19,7 @@ use tauri::{
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use uuid::Uuid;
 
-const BACKEND_BASE_URL: &str = "http://127.0.0.1:8765";
+const BACKEND_BASE_URL: &str = "http://127.0.0.1:8768";
 const DEFAULT_CAPTURE_SHORTCUT: &str = "Ctrl+Shift+Period";
 
 struct DesktopState {
@@ -598,6 +598,25 @@ async fn decode_backend_response(
     })
 }
 
+fn analysis_form(
+    png: Vec<u8>,
+    payload_json: String,
+) -> Result<reqwest::multipart::Form, CommandError> {
+    let image_part = reqwest::multipart::Part::bytes(png)
+        .file_name("capture.png")
+        .mime_str("image/png")
+        .map_err(|error| {
+            CommandError::new(
+                "request",
+                format!("Could not prepare screenshot upload: {error}"),
+                None,
+            )
+        })?;
+    Ok(reqwest::multipart::Form::new()
+        .part("image", image_part)
+        .text("payload_json", payload_json))
+}
+
 #[tauri::command]
 async fn check_backend_health() -> BackendHealth {
     let client = match reqwest::Client::builder()
@@ -696,25 +715,13 @@ async fn analyze_capture(
             None,
         )
     })?;
-    let image_part = reqwest::multipart::Part::bytes(png)
-        .file_name("capture.png")
-        .mime_str("image/png")
-        .map_err(|error| {
-            CommandError::new(
-                "request",
-                format!("Could not prepare screenshot upload: {error}"),
-                None,
-            )
-        })?;
-    let form = reqwest::multipart::Form::new()
-        .part("image", image_part)
-        .text("payload_json", payload_json);
-    let response = reqwest::Client::builder()
+    let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(180))
         .build()
-        .map_err(|error| CommandError::new("network", error.to_string(), None))?
+        .map_err(|error| CommandError::new("network", error.to_string(), None))?;
+    let response = client
         .post(format!("{BACKEND_BASE_URL}/api/analyze/stream"))
-        .multipart(form)
+        .multipart(analysis_form(png.clone(), payload_json.clone())?)
         .send()
         .await
         .map_err(|error| {
@@ -726,6 +733,19 @@ async fn analyze_capture(
             CommandError::new(kind, error.to_string(), None)
         })?;
     let status = response.status();
+    if status.as_u16() == 404 {
+        eprintln!("ANALYZE_STREAM_UNAVAILABLE capture_id={capture_id} fallback=/api/analyze");
+        let fallback = client
+            .post(format!("{BACKEND_BASE_URL}/api/analyze"))
+            .multipart(analysis_form(png, payload_json)?)
+            .send()
+            .await
+            .map_err(|error| {
+                let kind = if error.is_timeout() { "timeout" } else { "network" };
+                CommandError::new(kind, error.to_string(), None)
+            })?;
+        return decode_backend_response(fallback, &capture_id).await;
+    }
     if !status.is_success() {
         return decode_backend_response(response, &capture_id).await;
     }
@@ -1025,6 +1045,6 @@ mod tests {
             ),
             "No configured, available provider supports this route"
         );
-        assert_eq!(BACKEND_BASE_URL, "http://127.0.0.1:8765");
+        assert_eq!(BACKEND_BASE_URL, "http://127.0.0.1:8768");
     }
 }

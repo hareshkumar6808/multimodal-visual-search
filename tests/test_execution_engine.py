@@ -184,6 +184,20 @@ async def test_stream_falls_back_only_before_first_delta() -> None:
 
 
 @pytest.mark.asyncio
+async def test_stream_falls_back_when_provider_returns_no_text() -> None:
+    registry = ProviderRegistry(
+        [StreamingProvider("nvidia", []), StreamingProvider("local", ["local answer"])]
+    )
+    events = [
+        event
+        async for event in registry.stream_with_fallback(
+            EXPERTS["text-expert"], "prompt", False, b"", "image/png"
+        )
+    ]
+    assert [event.text for event in events if event.type == "delta"] == ["local answer"]
+
+
+@pytest.mark.asyncio
 async def test_stream_does_not_fallback_after_partial_output() -> None:
     registry = ProviderRegistry(
         [

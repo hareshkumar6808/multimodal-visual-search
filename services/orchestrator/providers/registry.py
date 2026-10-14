@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
@@ -273,6 +274,20 @@ class ProviderRegistry:
         ranked_provider_candidates: tuple[str, ...] = (),
     ) -> AsyncIterator[ProviderStreamEvent]:
         candidates = self.ranked(expert, image_required, prefer_cloud=prefer_cloud)
+        if image_required:
+            text_fallbacks = self.ranked(
+                expert,
+                False,
+                prefer_cloud=False,
+                local_only=True,
+                task_kind="vision:ocr-fallback",
+            )
+            candidate_names = {provider.name for provider in candidates}
+            candidates.extend(
+                provider
+                for provider in text_fallbacks
+                if provider.name not in candidate_names and "vision" not in provider.capabilities
+            )
         if ranked_provider_candidates:
             order = {name: index for index, name in enumerate(ranked_provider_candidates)}
             candidates.sort(key=lambda provider: order.get(provider.name, len(order)))
@@ -291,21 +306,33 @@ class ProviderRegistry:
             try:
                 yield ProviderStreamEvent("progress", provider=provider.name)
                 send_image = image_required and "vision" in provider.capabilities
-                async for delta in provider.stream_generate(
-                    prompt, image_bytes if send_image else None, mime_type
-                ):
-                    if not delta:
-                        continue
-                    now = perf_counter()
-                    metrics = None
-                    if not emitted:
-                        metrics = {
-                            "provider_start_ms": (provider_started - stream_started) * 1000,
-                            "provider_ttft_ms": (now - provider_started) * 1000,
-                            "time_to_first_useful_output_ms": (now - stream_started) * 1000,
-                        }
-                    emitted = True
-                    yield ProviderStreamEvent("delta", delta, provider.name, metrics)
+                provider_prompt = prompt
+                if image_required and not send_image:
+                    provider_prompt += (
+                        "\n\nOFFLINE TEXT FALLBACK: Raw image pixels are unavailable to this "
+                        "text-only model. Answer only from extracted text and desktop context "
+                        "included above. If they are insufficient, say what could not be "
+                        "determined from the local extraction."
+                    )
+                timeout = float(getattr(provider, "timeout", 30.0))
+                async with asyncio.timeout(timeout):
+                    async for delta in provider.stream_generate(
+                        provider_prompt, image_bytes if send_image else None, mime_type
+                    ):
+                        if not delta:
+                            continue
+                        now = perf_counter()
+                        metrics = None
+                        if not emitted:
+                            metrics = {
+                                "provider_start_ms": (provider_started - stream_started) * 1000,
+                                "provider_ttft_ms": (now - provider_started) * 1000,
+                                "time_to_first_useful_output_ms": (now - stream_started) * 1000,
+                            }
+                        emitted = True
+                        yield ProviderStreamEvent("delta", delta, provider.name, metrics)
+                if not emitted:
+                    raise ProviderError(f"Provider {provider.name} returned an empty stream")
                 total = (perf_counter() - provider_started) * 1000
                 yield ProviderStreamEvent(
                     "done",

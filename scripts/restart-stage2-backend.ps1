@@ -12,14 +12,16 @@ if (Test-Path $statePath) {
     if ($process -and $process.StartTime.ToFileTimeUtc() -eq [long]$state.start_time) { & taskkill.exe /PID $process.Id /T /F 2>$null | Out-Null }
     Remove-Item $statePath -Force -ErrorAction SilentlyContinue
 }
+Stop-StaleStage2Backend
 Wait-Stage2Endpoint "local Qwen" "http://127.0.0.1:11434/health" 5
 $python = Join-Path $ctx.PythonRoot ".venv\Scripts\python.exe"
 $env:TESSERACT_CMD = Find-Stage2Tesseract $ctx
 $env:LOCAL_BASE_URL = "http://127.0.0.1:11434/v1"
 $env:LOCAL_MODEL = "qwen2.5-3b-instruct"
+$env:PROVIDER_TIMEOUT_SECONDS = "10"
 $backend = Start-Process $python -WorkingDirectory $root -WindowStyle Hidden -PassThru `
-    -ArgumentList @("-m", "uvicorn", "services.orchestrator.main:app", "--host", "127.0.0.1", "--port", "8765") `
+    -ArgumentList @("-m", "uvicorn", "services.orchestrator.main:app", "--host", "127.0.0.1", "--port", "8768") `
     -RedirectStandardOutput (Join-Path $ctx.LogDir "backend.out.log") `
     -RedirectStandardError (Join-Path $ctx.LogDir "backend.err.log")
 Save-Stage2Process $ctx "backend" $backend
-Wait-Stage2Endpoint "Stage 2 backend" "http://127.0.0.1:8765/api/health" 120
+Wait-Stage2Backend 120

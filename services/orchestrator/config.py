@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     local_provider_timeout_seconds: float = Field(default=30.0, gt=0)
     local_max_tokens: int = Field(default=512, ge=32, le=4096)
 
-    provider_timeout_seconds: float = Field(default=45.0, gt=0)
+    provider_timeout_seconds: float = Field(default=10.0, gt=0)
     conversation_db_path: str = ".tools/stage1/conversations.db"
     provider_performance_db_path: str = ".tools/stage1/conversations.db"
     provider_ewma_alpha: float = Field(default=0.25, gt=0, le=1)

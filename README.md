@@ -1,5 +1,13 @@
 # Multimodal Visual Search
 
+Stage 2 learned-representation evidence is documented in:
+
+- [`docs/STAGE2_REPRESENTATION_ML_REPORT.md`](docs/STAGE2_REPRESENTATION_ML_REPORT.md)
+- [`docs/STAGE2_REPRESENTATION_BENCHMARK.md`](docs/STAGE2_REPRESENTATION_BENCHMARK.md)
+- [`docs/STAGE2_PERCEPTION_LATENCY.md`](docs/STAGE2_PERCEPTION_LATENCY.md)
+
+The learned selector is advisory. The query-aware router owns the final image-forwarding decision, and the current safety policy preserves capture pixels.
+
 Multimodal Visual Search is a Windows desktop app for selecting part of the screen and discussing it with a routed AI assistant. Stage 1 captures a rectangle, runs local OCR and perception, builds MIR v0.1, selects a specialized expert, and uses configured cloud providers with an offline local fallback. Images, messages, traces, and semantic context remain available in a persistent conversation.
 
 # Run on Windows

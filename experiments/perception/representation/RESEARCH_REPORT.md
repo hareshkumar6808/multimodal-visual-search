@@ -117,6 +117,12 @@ Runtime inference performs no dataset or weight download. Training/preparation/d
 
 Current status is research prototype, not production-ready. Baseline is retained unless a controlled validation comparison provides a defensible model improvement. No merge is performed.
 
+## Continuation audit: independent generalization and deployment
+
+The pinned dataset preparation was rerun and its archive hash, split counts, raw validation metrics, and historical test metrics reproduced exactly. A new 280-image, five-source proxy benchmark measured accuracy 0.2107, macro F1 0.2040, ECE 0.5182, and critical false-discard 142/170 (83.53%). High confidence did not separate errors: critical mistakes had mean confidence 0.7904. This independently confirms that the checkpoint is domain-specific and cannot control pixel deletion. It remains advisory under the existing always-preserve policy; no new model was trained.
+
+Fresh ONNX/PyTorch parity, controlled Stage 1-versus-Stage 2 overhead, process memory, wheel build, isolated installation, bundled-artifact discovery, and offline inference evidence are recorded in `docs/STAGE2_PERCEPTION_LATENCY.md` and the corresponding JSON reports. Fresh OCR-inclusive timing was unavailable because Tesseract is not installed on this host; older committed Tesseract measurements are retained with that limitation stated explicitly.
+
 ## Milestone 2: end-to-end representation safety
 
 A fresh run of evaluate_policy.py --split validation reproduced the saved baseline on 63 DocLayNet proxy pages: raw MobileNet accuracy 39/63 (0.6190), macro F1 0.5251, critical proxy false-discard 3/9; the old composed selector was 27/63 (0.4286), macro F1 0.3765, critical proxy false-discard 2/9. Stage 1 visual_required was false for 5/9 critical proxy examples. These counts are about class predictions and weak layout proxies, not observed deletion or task-level answer failures. The historical validation split has influenced policy development and is not an independent final holdout.

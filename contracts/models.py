@@ -4,10 +4,11 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-Modality = Literal["text", "code", "table", "chart", "image", "mixed"]
+Modality = Literal["text", "code", "math", "table", "chart", "image", "ui", "mixed"]
 RepresentationKind = Literal[
     "text_sufficient", "structure_sufficient", "pixels_required", "mixed"
 ]
+ExecutionMode = Literal["direct", "tool", "local_llm", "cloud_text", "cloud_vision"]
 Intent = Literal[
     "explain",
     "identify",
@@ -65,9 +66,11 @@ class Modalities(BaseModel):
 
     text: float = Field(default=0, ge=0, le=1)
     code: float = Field(default=0, ge=0, le=1)
+    math: float = Field(default=0, ge=0, le=1)
     table: float = Field(default=0, ge=0, le=1)
     chart: float = Field(default=0, ge=0, le=1)
     image: float = Field(default=0, ge=0, le=1)
+    ui: float = Field(default=0, ge=0, le=1)
     mixed: float = Field(default=0, ge=0, le=1)
 
 
@@ -175,6 +178,16 @@ class RouteInfo(BaseModel):
     expert: str
     provider: str | None
     reason_code: str
+    sub_expert: str | None = None
+    leaf_route: str | None = None
+    routing_confidence: float | None = Field(default=None, ge=0, le=1)
+    router_source: Literal["ml", "rule", "deterministic"] = "rule"
+    fallback_used: bool = False
+    execution_mode: ExecutionMode | None = None
+    send_pixels: bool = False
+    requested_tool: str | None = None
+    ranked_provider_candidates: list[str] = Field(default_factory=list)
+    provider_policy_reason: str | None = None
 
 
 class Metrics(BaseModel):
@@ -184,6 +197,9 @@ class Metrics(BaseModel):
     provider_ms: int
     cloud_image_uploaded: bool
     api_calls: int
+    feature_build_ms: float = 0
+    classifier_ms: float = 0
+    router_total_ms: float = 0
 
 
 class AnalyzeResponse(BaseModel):

@@ -15,6 +15,8 @@ dependencies = [
   "pydantic-settings>=2.4,<3",
   "pytesseract>=0.3.10,<1",
   "python-multipart>=0.0.9,<1",
+  "numpy>=1.26,<2.4",
+  "scikit-learn>=1.5,<2",
   "uvicorn[standard]>=0.30,<1",
 ]
 
@@ -36,6 +38,8 @@ perception-onnx = [
 ]
 research = [
   "datasets>=4,<5",
+training = [
+  "datasets>=3,<5",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -63,5 +67,9 @@ strict = true
 packages = ["contracts", "services"]
 
 [[tool.mypy.overrides]]
-module = ["torch", "torch.*", "torchvision", "torchvision.*"]
+module = [
+  "joblib", "joblib.*", "numpy", "numpy.*",
+  "torch", "torch.*", "torchvision", "torchvision.*",
+]
+follow_imports = "skip"
 ignore_missing_imports = true

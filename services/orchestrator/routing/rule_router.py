@@ -13,7 +13,7 @@ class ExpertRoute:
 
 
 class RuleRouter:
-    """Replaceable Stage 1 rule router with explicit, auditable decisions."""
+    """Stage 1 fallback router retained for disabled or unavailable ML routing."""
 
     def __init__(self, confidence_threshold: float = 0.45) -> None:
         self.confidence_threshold = confidence_threshold
@@ -28,6 +28,10 @@ class RuleRouter:
         if primary == "code":
             return ExpertRoute(
                 EXPERTS["code-expert"], f"CODE_{intent.upper()}_TEXT_SUFFICIENT", False, 0.95
+            )
+        if primary == "math":
+            return ExpertRoute(
+                EXPERTS["math-expert"], f"MATH_{intent.upper()}_EXPRESSION", False, 0.94
             )
         if primary == "table":
             return ExpertRoute(
@@ -45,6 +49,13 @@ class RuleRouter:
             )
         if primary == "image":
             return ExpertRoute(EXPERTS["vision-expert"], "IMAGE_VISUAL_REQUIRED", True, 0.96)
+        if primary == "ui":
+            return ExpertRoute(
+                EXPERTS["ui-expert"],
+                f"UI_{intent.upper()}_{'VISUAL' if mir.visual_required else 'OCR'}",
+                mir.visual_required,
+                0.9,
+            )
         if primary == "text":
             return ExpertRoute(
                 EXPERTS["text-expert"],

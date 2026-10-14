@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     perception_mode: str = "real"
     perception_module: str = "services.perception"
     perception_confidence_threshold: float = Field(default=0.45, ge=0, le=1)
+    ml_router_enabled: bool = True
+    ml_router_artifact_path: str = "services/orchestrator/artifacts/task_router_v1.joblib"
 
     nvidia_api_key: str | None = None
     nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
@@ -36,6 +38,12 @@ class Settings(BaseSettings):
 
     provider_timeout_seconds: float = Field(default=45.0, gt=0)
     conversation_db_path: str = ".tools/stage1/conversations.db"
+    provider_performance_db_path: str = ".tools/stage1/conversations.db"
+    provider_ewma_alpha: float = Field(default=0.25, gt=0, le=1)
+    provider_ttft_weight: float = Field(default=0.6, ge=0)
+    provider_total_latency_weight: float = Field(default=0.4, ge=0)
+    provider_failure_penalty_ms: float = Field(default=8_000, ge=0)
+    provider_min_samples: int = Field(default=3, ge=1)
 
 
 @lru_cache

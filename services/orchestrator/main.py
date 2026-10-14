@@ -23,7 +23,7 @@ from services.orchestrator.providers.registry import (
     NoCompatibleProviderError,
     ProviderRegistry,
 )
-from services.orchestrator.routing import RuleRouter
+from services.orchestrator.routing import RuleRouter, UnifiedTaskRouter
 from services.orchestrator.service import Orchestrator
 from services.orchestrator.validation import ResponseValidationError
 
@@ -36,7 +36,11 @@ def build_orchestrator(settings: Settings) -> Orchestrator:
     )
     return Orchestrator(
         perception,
-        RuleRouter(settings.perception_confidence_threshold),
+        UnifiedTaskRouter(
+            settings.ml_router_artifact_path,
+            enabled=settings.ml_router_enabled,
+            fallback=RuleRouter(settings.perception_confidence_threshold),
+        ),
         ProviderRegistry.from_settings(settings),
         ConversationStore(settings.conversation_db_path),
     )

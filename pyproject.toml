@@ -34,6 +34,9 @@ perception-onnx = [
   "onnx>=1.16,<2",
   "onnxruntime>=1.18,<2",
 ]
+research = [
+  "datasets>=4,<5",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["contracts", "services"]
@@ -58,3 +61,7 @@ python_version = "3.11"
 plugins = ["pydantic.mypy"]
 strict = true
 packages = ["contracts", "services"]
+
+[[tool.mypy.overrides]]
+module = ["torch", "torch.*", "torchvision", "torchvision.*"]
+ignore_missing_imports = true

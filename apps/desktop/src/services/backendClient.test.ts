@@ -1,8 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnalyzePayload, AnalyzeResponse } from "../types/api";
 
-const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
-vi.mock("@tauri-apps/api/core", () => ({ invoke }));
+const { invoke, MockChannel } = vi.hoisted(() => {
+  class MockChannel<T> {
+    onmessage?: (message: T) => void;
+  }
+
+  return { invoke: vi.fn(), MockChannel };
+});
+vi.mock("@tauri-apps/api/core", () => ({ invoke, Channel: MockChannel }));
 
 import {
   analyzeCapture,
@@ -41,7 +47,24 @@ describe("analyzeCapture", () => {
   it("sends the agreed capture id and payload through the native bridge", async () => {
     invoke.mockResolvedValue(response);
     await expect(analyzeCapture("capture-123", payload)).resolves.toEqual(response);
-    expect(invoke).toHaveBeenCalledWith("analyze_capture", { captureId: "capture-123", payload });
+    expect(invoke).toHaveBeenCalledWith("analyze_capture", {
+      captureId: "capture-123",
+      payload,
+      onEvent: expect.any(MockChannel),
+    });
+  });
+
+  it("delivers initial response chunks through the native IPC channel", async () => {
+    const events: string[] = [];
+    invoke.mockImplementation(async (_command, args) => {
+      (args.onEvent as { onmessage?: (message: { type: string; text?: string }) => void }).onmessage?.({
+        type: "delta",
+        text: "hello",
+      });
+      return response;
+    });
+    await analyzeCapture("capture-123", payload, (event) => events.push(event.text ?? ""));
+    expect(events).toEqual(["hello"]);
   });
 
   it("maps connection failures to the required backend unavailable message", () => {

@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import type {
   AnalyzePayload,
   AnalyzeResponse,
@@ -105,17 +105,16 @@ export async function analyzeCapture(
   payload: AnalyzePayload,
   onEvent?: (event: StreamEvent) => void,
 ): Promise<AnalyzeResponse> {
-  let unlisten: (() => void) | undefined;
   try {
-    if (onEvent) {
-      const { listen } = await import("@tauri-apps/api/event");
-      unlisten = await listen<StreamEvent>("analysis-stream", (event) => onEvent(event.payload));
-    }
-    return await invoke<AnalyzeResponse>("analyze_capture", { captureId, payload });
+    const eventChannel = new Channel<StreamEvent>();
+    eventChannel.onmessage = (event) => onEvent?.(event);
+    return await invoke<AnalyzeResponse>("analyze_capture", {
+      captureId,
+      payload,
+      onEvent: eventChannel,
+    });
   } catch (error) {
     throw normalizeBackendError(error);
-  } finally {
-    unlisten?.();
   }
 }
 

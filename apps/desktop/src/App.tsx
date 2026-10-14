@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
 import { CaptureOverlay } from "./components/CaptureOverlay";
 import { ChatWindow } from "./components/ChatWindow";
 import { FloatingWidget } from "./components/FloatingWidget";
@@ -29,17 +28,9 @@ export function App() {
       void desktopBridge.getActiveCaptureId().then(setCaptureId).catch(() => setCaptureId(null));
     };
     refreshCapture();
-    let disposed = false;
-    let unlisten: (() => void) | undefined;
-    void listen<string>("capture-stored", (event) => setCaptureId(event.payload)).then((stop) => {
-      if (disposed) stop();
-      else unlisten = stop;
-    });
     window.addEventListener("focus", refreshCapture);
     document.addEventListener("visibilitychange", refreshCapture);
     return () => {
-      disposed = true;
-      unlisten?.();
       window.removeEventListener("focus", refreshCapture);
       document.removeEventListener("visibilitychange", refreshCapture);
     };

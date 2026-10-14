@@ -13,7 +13,7 @@ use image::{DynamicImage, ImageOutputFormat};
 use screenshots::Screen;
 use serde::{Deserialize, Serialize};
 use tauri::{
-    AppHandle, Emitter, LogicalSize, Manager, State, WebviewUrl, WebviewWindow,
+    ipc::Channel, AppHandle, Emitter, LogicalSize, Manager, State, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder, Window, WindowEvent,
 };
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
@@ -673,10 +673,10 @@ async fn check_backend_health() -> BackendHealth {
 
 #[tauri::command]
 async fn analyze_capture(
-    app: AppHandle,
     state: State<'_, DesktopState>,
     capture_id: String,
     payload: AnalyzePayload,
+    on_event: Channel<serde_json::Value>,
 ) -> Result<AnalyzeResponse, CommandError> {
     let png = {
         let captures = state
@@ -746,7 +746,7 @@ async fn analyze_capture(
                 let event: serde_json::Value = serde_json::from_str(data).map_err(|error| {
                     CommandError::new("invalid_response", error.to_string(), Some(status.as_u16()))
                 })?;
-                let _ = app.emit("analysis-stream", event.clone());
+                let _ = on_event.send(event.clone());
                 if event.get("type").and_then(|value| value.as_str()) == Some("done") {
                     if let Some(response_value) = event.get("response") {
                         final_response = Some(serde_json::from_value(response_value.clone()).map_err(|error| {

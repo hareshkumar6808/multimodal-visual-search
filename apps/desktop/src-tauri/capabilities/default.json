@@ -3,8 +3,5 @@
   "identifier": "desktop-windows",
   "description": "Permissions for the Stage 1 desktop windows",
   "windows": ["widget", "capture", "chat", "utility-*"],
-  "permissions": [
-    "core:default",
-    "core:event:default"
-  ]
+  "permissions": ["core:default"]
 }

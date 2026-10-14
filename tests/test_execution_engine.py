@@ -49,6 +49,12 @@ def test_math_solves_quadratic() -> None:
     assert result.result == "[2, 3]"
 
 
+def test_math_accepts_caret_and_implicit_coefficient() -> None:
+    result = math_tool("solve", "x^2 - 5x + 6 = 0")
+    assert result.success
+    assert result.result == "[2, 3]"
+
+
 @pytest.mark.parametrize(
     "expression",
     ["__import__('os')", "x.__class__", "lambda: 1", "[x for x in [1]]", "open('x')"],

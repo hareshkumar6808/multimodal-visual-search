@@ -5,9 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Modality = Literal["text", "code", "math", "table", "chart", "image", "ui", "mixed"]
-RepresentationKind = Literal[
-    "text_sufficient", "structure_sufficient", "pixels_required", "mixed"
-]
+RepresentationKind = Literal["text_sufficient", "structure_sufficient", "pixels_required", "mixed"]
 ExecutionMode = Literal["direct", "tool", "local_llm", "cloud_text", "cloud_vision"]
 Intent = Literal[
     "explain",

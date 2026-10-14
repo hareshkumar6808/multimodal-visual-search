@@ -70,8 +70,16 @@ class ExecutionPolicy:
 
     def should_send_pixels(self, mir: MIR, query: str, leaf_route: str) -> bool:
         extra = mir.model_extra or {}
-        prior = extra.get("pixel_dependency_prior")
-        representation = str(extra.get("representation_mode") or "")
+        prior = (
+            mir.representation.pixel_dependency_prior
+            if mir.representation
+            else extra.get("pixel_dependency_prior")
+        )
+        representation = str(
+            (mir.representation.kind if mir.representation else None)
+            or extra.get("representation_mode")
+            or ""
+        )
         ocr_confidence = mir.ocr.confidence or 0.0
         asks_visual = any(term in query for term in self._visual_terms)
 
@@ -83,7 +91,9 @@ class ExecutionPolicy:
             return not (mir.ocr.text and ocr_confidence >= 0.75)
         if asks_visual and mir.primary_modality in {"image", "ui", "mixed"}:
             return True
-        if representation in {"pixels", "raw_pixels"} and isinstance(prior, (int, float)):
+        if representation in {"pixels", "raw_pixels", "pixels_required"} and isinstance(
+            prior, (int, float)
+        ):
             return float(prior) >= 0.65
         return False
 

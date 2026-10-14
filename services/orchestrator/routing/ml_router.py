@@ -131,7 +131,12 @@ class UnifiedTaskRouter:
             classifier_ms = (perf_counter() - classifier_started) * 1000
             thresholds = self._artifact.get("thresholds", {})
             threshold = float(thresholds.get(family, thresholds.get("global", 0.5)))
-            if confidence < threshold:
+            evidence_leaf = self._specialized_evidence_leaf(built.text, candidates)
+            if confidence < threshold and evidence_leaf is not None:
+                leaf = evidence_leaf
+                confidence = float(probability_by_class.get(leaf, 0.0))
+            evidence_supported = self._supports_specialized_prediction(built.text, leaf)
+            if confidence < threshold and not evidence_supported:
                 return self._finish(
                     mir,
                     query,
@@ -153,7 +158,7 @@ class UnifiedTaskRouter:
                 confidence,
                 "ml",
                 False,
-                "ML_SPECIALIZED_ROUTE",
+                "ML_SPECIALIZED_ROUTE_EVIDENCE" if evidence_supported else "ML_SPECIALIZED_ROUTE",
                 built.feature_build_ms,
                 classifier_ms,
                 started,
@@ -227,3 +232,23 @@ class UnifiedTaskRouter:
         if mir.primary_modality in {"text", "code", "math", "table", "chart", "image", "ui"}:
             return mir.primary_modality
         return "general"
+
+    @staticmethod
+    def _supports_specialized_prediction(features: str, leaf: str) -> bool:
+        """Accept a confident ML prediction when multiple domain terms support it."""
+        terms = {
+            "text/biomedical": {"patient", "metformin", "insulin", "clinical", "therapy"},
+            "text/legal": {"lessee", "lessor", "indemnify", "agreement", "jurisdiction"},
+            "text/finance": {"revenue", "margin", "earnings", "profit", "quarterly"},
+        }.get(leaf)
+        if not terms:
+            return False
+        normalized = features.lower()
+        return sum(term in normalized for term in terms) >= 2
+
+    @classmethod
+    def _specialized_evidence_leaf(cls, features: str, candidates: tuple[str, ...]) -> str | None:
+        supported = [
+            leaf for leaf in candidates if cls._supports_specialized_prediction(features, leaf)
+        ]
+        return supported[0] if len(supported) == 1 else None

@@ -79,6 +79,16 @@ def test_production_model_specialized_routes(modality: str, content: str, expect
     assert decision.router_source == "ml"
 
 
+def test_short_biomedical_capture_keeps_supported_ml_leaf() -> None:
+    decision = UnifiedTaskRouter().route(
+        mir("text", "The patient was treated with metformin and insulin."),
+        "explain",
+        "Explain this",
+    )
+    assert decision.leaf_route == "text/biomedical"
+    assert decision.router_source == "ml"
+
+
 @pytest.mark.parametrize(
     ("modality", "expected"),
     [

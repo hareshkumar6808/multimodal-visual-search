@@ -13,6 +13,24 @@ Stage 2 Component 3 recovery and validation details are in
 
 Multimodal Visual Search is a Windows desktop app for selecting part of the screen and discussing it with a routed AI assistant. Stage 1 captures a rectangle, runs local OCR and perception, builds MIR v0.1, selects a specialized expert, and uses configured cloud providers with an offline local fallback. Images, messages, traces, and semantic context remain available in a persistent conversation.
 
+## Stage 2 normal use
+
+After the one-time setup, launch the complete native application from PowerShell:
+
+```powershell
+.\scripts\setup-stage2.ps1
+.\scripts\run-stage2.ps1
+```
+
+Stop or restart the project-owned processes with:
+
+```powershell
+.\scripts\stop-stage2.ps1
+.\scripts\restart-stage2.ps1
+```
+
+Stage 2 adds a learned advisory representation selector, one unified semantic route classifier, direct OCR and deterministic tool fast paths, query-aware image transmission, adaptive provider selection, specialized expert execution, and incremental streamed answers. Existing Stage 1 Qwen and llama.cpp assets are reused when found, avoiding another model download.
+
 # Run on Windows
 
 ## Requirements

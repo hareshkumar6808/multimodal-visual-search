@@ -1,4 +1,5 @@
 import logging
+import re
 from collections.abc import AsyncIterator
 from dataclasses import replace
 from time import perf_counter
@@ -17,6 +18,8 @@ from contracts.models import (
 from services.orchestrator.conversations import ConversationStore
 from services.orchestrator.execution.engine import (
     ExecutionEngine,
+)
+from services.orchestrator.execution.engine import (
     RouteDecisionV2 as ExecutionRouteDecision,
 )
 from services.orchestrator.experts import SUGGESTIONS
@@ -28,9 +31,11 @@ from services.orchestrator.providers.registry import ProviderRegistry
 from services.orchestrator.representation_policy import decide_image_preservation
 from services.orchestrator.routing import (
     ExpertRoute,
-    RouteDecisionV2 as RouterRouteDecision,
     RuleRouter,
     UnifiedTaskRouter,
+)
+from services.orchestrator.routing import (
+    RouteDecisionV2 as RouterRouteDecision,
 )
 from services.orchestrator.validation import ResponseValidationError, validate_answer
 
@@ -225,7 +230,10 @@ class Orchestrator:
         route_v2 = self._execution_route(expert_route, payload)
         decision, policy = self.execution.adapt(route_v2, expert_route.expert.name)
         local_result = self.execution.execute_local(
-            decision, policy, ocr_text=mir.ocr.text, tool_input=payload.tool_input
+            decision,
+            policy,
+            ocr_text=mir.ocr.text,
+            tool_input=self._tool_input(decision, mir, payload),
         )
         if local_result.kind != "provider":
             event_stage = "direct" if local_result.kind == "direct" else "tool"
@@ -322,9 +330,7 @@ class Orchestrator:
 
         prompt = build_prompt(expert_route.expert, mir, payload, history)
         prompt += f"\n\nSPECIALIZED POLICY:\n{policy.prompt_fragment}"
-        prefer_cloud = (
-            decision.execution_mode.startswith("cloud")
-        )
+        prefer_cloud = decision.execution_mode.startswith("cloud")
         local_only = "local_only" in mir.privacy_flags or bool(mir.context.get("local_only", False))
         image_required = decision.send_pixels
         ranked_candidates = [
@@ -491,6 +497,54 @@ class Orchestrator:
             send_pixels=route.image_required,
         )
 
+    @staticmethod
+    def _tool_input(
+        decision: ExecutionRouteDecision, mir: MIR, payload: AnalyzePayload | ChatPayload
+    ) -> dict[str, object] | None:
+        if payload.tool_input is not None or decision.execution_mode != "tool":
+            return payload.tool_input
+        query = (payload.query or "").lower()
+        if decision.requested_tool == "math":
+            operations = {
+                "solve": "solve",
+                "factor": "factor",
+                "expand": "expand",
+                "differentiate": "differentiate",
+                "derivative": "differentiate",
+                "integrate": "integrate",
+            }
+            operation = next((value for key, value in operations.items() if key in query), None)
+            return {
+                "operation": operation or ("solve" if "=" in mir.ocr.text else "simplify"),
+                "expression": mir.ocr.text.strip(),
+            }
+        if decision.requested_tool == "table":
+            operation = next(
+                (
+                    name
+                    for term, name in {
+                        "maximum": "max",
+                        "highest": "max",
+                        "minimum": "min",
+                        "lowest": "min",
+                        "average": "mean",
+                        "mean": "mean",
+                        "sum": "sum",
+                        "total": "sum",
+                        "count": "count",
+                    }.items()
+                    if term in query
+                ),
+                "max",
+            )
+            values = [float(value) for value in re.findall(r"-?\d+(?:\.\d+)?", mir.ocr.text)]
+            return {"operation": operation, "values": values}
+        if decision.requested_tool == "python_static":
+            return {"source": mir.ocr.text}
+        if decision.requested_tool == "sql_static":
+            return {"source": mir.ocr.text}
+        return None
+
     async def stream_analyze(
         self, image_bytes: bytes, mime_type: str, payload: AnalyzePayload
     ) -> AsyncIterator[dict[str, object]]:
@@ -553,7 +607,10 @@ class Orchestrator:
         route_v2 = self._execution_route(expert_route, payload)
         decision, policy = self.execution.adapt(route_v2, expert_route.expert.name)
         local = self.execution.execute_local(
-            decision, policy, ocr_text=mir.ocr.text, tool_input=payload.tool_input
+            decision,
+            policy,
+            ocr_text=mir.ocr.text,
+            tool_input=self._tool_input(decision, mir, payload),
         )
         if local.kind != "provider":
             yield {

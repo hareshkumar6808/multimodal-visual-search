@@ -18,7 +18,11 @@ class RouterFeatureBuilder:
     def build(self, mir: MIR, query: str | None, intent: Intent) -> BuiltFeatures:
         started = perf_counter()
         extra = mir.model_extra or {}
-        representation_mode = str(extra.get("representation_mode") or "unknown")
+        representation_mode = str(
+            (mir.representation.kind if mir.representation else None)
+            or extra.get("representation_mode")
+            or "unknown"
+        )
         app = str(mir.context.get("active_app") or mir.context.get("application") or "unknown")
         boolean_tokens = [
             f"has_ocr_{bool(mir.ocr.text)}",

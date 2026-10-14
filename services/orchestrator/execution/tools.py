@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import operator
+import re
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from time import perf_counter
@@ -76,7 +77,9 @@ def _sympy_from_ast(node: ast.AST, symbols: dict[str, sympy.Symbol]) -> Any:
 
 
 def _parse_expression(text: str, symbols: dict[str, sympy.Symbol]) -> Any:
-    tree = ast.parse(text.strip().replace("^", "**"), mode="eval")
+    normalized = text.strip().replace("^", "**")
+    normalized = re.sub(r"(?<=\d)(?=[A-Za-z_(])", "*", normalized)
+    tree = ast.parse(normalized, mode="eval")
     return _sympy_from_ast(tree.body, symbols)
 
 

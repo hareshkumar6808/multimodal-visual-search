@@ -20,28 +20,19 @@ export async function streamConversation(
   onEvent: (event: StreamEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const response = await fetch("http://127.0.0.1:8771/api/chat/stream", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-    body: JSON.stringify(payload),
-    signal,
-  });
-  if (!response.ok || !response.body) {
-    throw new BackendRequestError(`Streaming request failed with HTTP ${response.status}.`, response.status);
-  }
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  while (true) {
-    const { value, done } = await reader.read();
-    buffer += decoder.decode(value, { stream: !done });
-    const frames = buffer.split("\n\n");
-    buffer = frames.pop() ?? "";
-    for (const frame of frames) {
-      const data = frame.split("\n").find((line) => line.startsWith("data: "))?.slice(6);
-      if (data) onEvent(JSON.parse(data) as StreamEvent);
-    }
-    if (done) break;
+  try {
+    const eventChannel = new Channel<StreamEvent>();
+    eventChannel.onmessage = (event) => {
+      if (!signal?.aborted) onEvent(event);
+    };
+    await invoke<AnalyzeResponse>("stream_conversation", {
+      payload,
+      onEvent: eventChannel,
+    });
+    if (signal?.aborted) throw new DOMException("The request was cancelled.", "AbortError");
+  } catch (error) {
+    if (signal?.aborted) throw new DOMException("The request was cancelled.", "AbortError");
+    throw normalizeBackendError(error);
   }
 }
 

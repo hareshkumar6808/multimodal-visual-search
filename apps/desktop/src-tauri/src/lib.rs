@@ -46,6 +46,7 @@ struct StoredCapture {
     screen: CaptureBounds,
     active_app: Option<String>,
     window_title: Option<String>,
+    source_window: Option<isize>,
     result: Option<CaptureResult>,
     captured_at_ms: u64,
 }
@@ -241,7 +242,7 @@ fn capture_primary_screen() -> Result<(Vec<u8>, CaptureBounds), String> {
 }
 
 #[cfg(windows)]
-fn active_window_context() -> (Option<String>, Option<String>) {
+fn active_window_context() -> (Option<String>, Option<String>, Option<isize>) {
     use std::{ffi::OsString, os::windows::ffi::OsStringExt, path::PathBuf};
     use windows::{
         core::PWSTR,
@@ -260,7 +261,7 @@ fn active_window_context() -> (Option<String>, Option<String>) {
     unsafe {
         let window = GetForegroundWindow();
         if window.0.is_null() {
-            return (None, None);
+            return (None, None, None);
         }
 
         let title_length = GetWindowTextLengthW(window);
@@ -290,13 +291,13 @@ fn active_window_context() -> (Option<String>, Option<String>) {
                 })
             });
 
-        (app, title)
+        (app, title, Some(window.0 as isize))
     }
 }
 
 #[cfg(not(windows))]
-fn active_window_context() -> (Option<String>, Option<String>) {
-    (None, None)
+fn active_window_context() -> (Option<String>, Option<String>, Option<isize>) {
+    (None, None, None)
 }
 
 fn open_capture_window(
@@ -326,27 +327,97 @@ fn configure_chat_window(chat: &WebviewWindow) {
     });
 }
 
-fn position_chat_as_side_panel(chat: &WebviewWindow) -> Result<(), String> {
+#[cfg(windows)]
+fn tile_source_window(
+    source_window: Option<isize>,
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+) -> Result<(), String> {
+    use windows::Win32::{
+        Foundation::HWND,
+        UI::WindowsAndMessaging::{
+            IsWindow, SetWindowPos, ShowWindow, SWP_NOACTIVATE, SWP_NOZORDER, SW_RESTORE,
+        },
+    };
+
+    let Some(raw_window) = source_window else {
+        return Ok(());
+    };
+    let window = HWND(raw_window as *mut core::ffi::c_void);
+    unsafe {
+        if !IsWindow(window).as_bool() {
+            return Ok(());
+        }
+        let _ = ShowWindow(window, SW_RESTORE);
+        SetWindowPos(
+            window,
+            HWND::default(),
+            x,
+            y,
+            width as i32,
+            height as i32,
+            SWP_NOACTIVATE | SWP_NOZORDER,
+        )
+        .map_err(|error| format!("Could not arrange the captured window: {error}"))?;
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn tile_source_window(
+    _source_window: Option<isize>,
+    _x: i32,
+    _y: i32,
+    _width: u32,
+    _height: u32,
+) -> Result<(), String> {
+    Ok(())
+}
+
+fn position_chat_as_side_panel(
+    chat: &WebviewWindow,
+    source_window: Option<isize>,
+) -> Result<(), String> {
     let Some(monitor) = chat.primary_monitor().map_err(|error| error.to_string())? else {
         return Ok(());
     };
     let work_area = monitor.work_area();
-    let scale = monitor.scale_factor();
-    let margin = (12.0 * scale).round() as u32;
-    let desired_width = (430.0 * scale).round() as u32;
-    let available_width = work_area.size.width.saturating_sub(margin.saturating_mul(2));
-    let width = desired_width.min(available_width);
-    let height = work_area.size.height.saturating_sub(margin.saturating_mul(2));
-    let x = work_area.position.x + work_area.size.width as i32 - width as i32 - margin as i32;
-    let y = work_area.position.y + margin as i32;
-    chat.set_size(PhysicalSize::new(width, height))
+    let gap = 8_u32;
+    let minimum_panel = (420.0 * monitor.scale_factor()).round() as u32;
+    let maximum_panel = (560.0 * monitor.scale_factor()).round() as u32;
+    let proportional_panel = work_area.size.width.saturating_mul(38) / 100;
+    let panel_width = proportional_panel
+        .max(minimum_panel)
+        .min(maximum_panel)
+        .min(work_area.size.width);
+    let source_width = work_area
+        .size
+        .width
+        .saturating_sub(panel_width.saturating_add(gap));
+    let panel_x = work_area.position.x + work_area.size.width as i32 - panel_width as i32;
+    chat.set_size(PhysicalSize::new(panel_width, work_area.size.height))
         .map_err(|error| error.to_string())?;
-    chat.set_position(PhysicalPosition::new(x, y))
+    chat.set_position(PhysicalPosition::new(panel_x, work_area.position.y))
         .map_err(|error| error.to_string())?;
+    if source_width >= 400 {
+        tile_source_window(
+            source_window,
+            work_area.position.x,
+            work_area.position.y,
+            source_width,
+            work_area.size.height,
+        )?;
+    }
     Ok(())
 }
 
-fn open_chat_window(app: &AppHandle, capture_id: &str) -> Result<(), String> {
+fn open_chat_window(
+    app: &AppHandle,
+    capture_id: &str,
+    source_window: Option<isize>,
+) -> Result<(), String> {
     let chat = if let Some(existing) = app.get_webview_window("chat") {
         eprintln!("CHAT_WINDOW_REUSED capture_id={capture_id}");
         existing
@@ -365,7 +436,7 @@ fn open_chat_window(app: &AppHandle, capture_id: &str) -> Result<(), String> {
         created
     };
     let _ = chat.unminimize();
-    position_chat_as_side_panel(&chat)?;
+    position_chat_as_side_panel(&chat, source_window)?;
     chat.show().map_err(|error| error.to_string())?;
     chat.set_focus().map_err(|error| error.to_string())?;
     Ok(())
@@ -376,11 +447,11 @@ fn start_capture(app: &AppHandle) -> Result<CaptureFrame, String> {
         return Err("Assistant is paused.".to_string());
     }
     eprintln!("CAPTURE_STARTED");
-    let (active_app, window_title) = active_window_context();
     if let Some(widget) = app.get_webview_window("widget") {
         widget.hide().map_err(|error| error.to_string())?;
     }
-    std::thread::sleep(Duration::from_millis(90));
+    std::thread::sleep(Duration::from_millis(120));
+    let (active_app, window_title, source_window) = active_window_context();
     let (png, screen) = capture_primary_screen()?;
     let capture_id = Uuid::new_v4().to_string();
     let frame = CaptureFrame {
@@ -395,6 +466,7 @@ fn start_capture(app: &AppHandle) -> Result<CaptureFrame, String> {
             screen: screen.clone(),
             active_app,
             window_title,
+            source_window,
             result: None,
             captured_at_ms: unix_time_ms(),
         },
@@ -440,6 +512,7 @@ fn complete_capture(
         },
         captured_at_ms: stored.captured_at_ms,
     };
+    let source_window = stored.source_window;
     stored.png = png;
     stored.result = Some(result.clone());
     drop(captures);
@@ -455,7 +528,7 @@ fn complete_capture(
     if let Some(widget) = app.get_webview_window("widget") {
         let _ = widget.show();
     }
-    open_chat_window(app, capture_id)?;
+    open_chat_window(app, capture_id, source_window)?;
     Ok(result)
 }
 
@@ -845,6 +918,89 @@ async fn continue_conversation(payload: ChatPayload) -> Result<AnalyzeResponse, 
     decode_backend_response(response, &request_id).await
 }
 
+#[tauri::command]
+async fn stream_conversation(
+    payload: ChatPayload,
+    on_event: Channel<serde_json::Value>,
+) -> Result<AnalyzeResponse, CommandError> {
+    let request_id = payload.request_id.clone();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(180))
+        .build()
+        .map_err(|error| CommandError::new("network", error.to_string(), None))?;
+    let response = client
+        .post(format!("{BACKEND_BASE_URL}/api/chat/stream"))
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|error| {
+            let kind = if error.is_timeout() {
+                "timeout"
+            } else {
+                "network"
+            };
+            CommandError::new(kind, error.to_string(), None)
+        })?;
+    let status = response.status();
+    if !status.is_success() {
+        return decode_backend_response(response, &request_id).await;
+    }
+    eprintln!("CHAT_STREAM_STARTED request_id={request_id}");
+    let mut response = response;
+    let mut buffer = String::new();
+    let mut final_response: Option<AnalyzeResponse> = None;
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|error| CommandError::new("network", error.to_string(), None))?
+    {
+        buffer.push_str(&String::from_utf8_lossy(&chunk));
+        while let Some(boundary) = buffer.find("\n\n") {
+            let frame = buffer[..boundary].to_string();
+            buffer.drain(..boundary + 2);
+            if let Some(data) = frame.lines().find_map(|line| line.strip_prefix("data: ")) {
+                let event: serde_json::Value = serde_json::from_str(data).map_err(|error| {
+                    CommandError::new("invalid_response", error.to_string(), Some(status.as_u16()))
+                })?;
+                let _ = on_event.send(event.clone());
+                match event.get("type").and_then(|value| value.as_str()) {
+                    Some("done") => {
+                        if let Some(response_value) = event.get("response") {
+                            final_response = Some(
+                                serde_json::from_value(response_value.clone()).map_err(|error| {
+                                    CommandError::new(
+                                        "invalid_response",
+                                        error.to_string(),
+                                        Some(status.as_u16()),
+                                    )
+                                })?,
+                            );
+                        }
+                    }
+                    Some("error") => {
+                        return Err(CommandError::new(
+                            "server",
+                            event
+                                .get("message")
+                                .and_then(|value| value.as_str())
+                                .unwrap_or("Stream failed"),
+                            Some(status.as_u16()),
+                        ));
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    final_response.ok_or_else(|| {
+        CommandError::new(
+            "invalid_response",
+            "Backend stream ended without a final response.",
+            Some(status.as_u16()),
+        )
+    })
+}
+
 async fn get_backend_json(path: &str) -> Result<serde_json::Value, CommandError> {
     let response = reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
@@ -1011,6 +1167,7 @@ pub fn run() {
             check_backend_health,
             analyze_capture,
             continue_conversation,
+            stream_conversation,
             get_analysis_progress,
             list_conversations,
             get_conversation,
@@ -1042,6 +1199,7 @@ mod tests {
             },
             active_app: None,
             window_title: None,
+            source_window: None,
             result: None,
             captured_at_ms: 1,
         }

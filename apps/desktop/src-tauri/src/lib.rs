@@ -351,7 +351,7 @@ fn tile_source_window(
             return Ok(());
         }
         let _ = ShowWindow(window, SW_RESTORE);
-        SetWindowPos(
+        if let Err(error) = SetWindowPos(
             window,
             HWND::default(),
             x,
@@ -359,8 +359,9 @@ fn tile_source_window(
             width as i32,
             height as i32,
             SWP_NOACTIVATE | SWP_NOZORDER,
-        )
-        .map_err(|error| format!("Could not arrange the captured window: {error}"))?;
+        ) {
+            eprintln!("SOURCE_WINDOW_TILE_FAILED error={error}");
+        }
     }
     Ok(())
 }
@@ -436,8 +437,11 @@ fn open_chat_window(
         created
     };
     let _ = chat.unminimize();
-    position_chat_as_side_panel(&chat, source_window)?;
     chat.show().map_err(|error| error.to_string())?;
+    eprintln!("CHAT_WINDOW_SHOWN capture_id={capture_id}");
+    if let Err(error) = position_chat_as_side_panel(&chat, source_window) {
+        eprintln!("CHAT_LAYOUT_FAILED capture_id={capture_id} error={error}");
+    }
     chat.set_focus().map_err(|error| error.to_string())?;
     Ok(())
 }

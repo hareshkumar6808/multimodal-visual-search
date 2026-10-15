@@ -9,7 +9,7 @@ New-Item -ItemType Directory -Force $ctx.StateDir, $ctx.LogDir | Out-Null
 & (Join-Path $PSScriptRoot "stop-stage2.ps1") -Quiet
 Stop-StaleStage2Backend
 
-foreach ($port in @(8768, 11434, 1420)) {
+foreach ($port in @(8768, 1420)) {
     $listeners = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
     if ($listeners) { throw "Port $port is already occupied by PID $($listeners[0].OwningProcess). Stop that process or the older project launcher first." }
 }
@@ -33,13 +33,22 @@ foreach ($name in @("backend.out.log", "backend.err.log", "local-provider.out.lo
     if (Test-Path $path) { Clear-Content $path }
 }
 
-Write-Host "Starting local Qwen provider..."
-$local = Start-Process $llama -WorkingDirectory $root -WindowStyle Hidden -PassThru `
-    -ArgumentList @("-m", $model, "--host", "127.0.0.1", "--port", "11434", "--alias", $env:LOCAL_MODEL, "-c", "4096", "-ngl", "99") `
-    -RedirectStandardOutput (Join-Path $ctx.LogDir "local-provider.out.log") `
-    -RedirectStandardError (Join-Path $ctx.LogDir "local-provider.err.log")
-Save-Stage2Process $ctx "local-provider" $local
-Wait-Stage2Endpoint "local Qwen" "http://127.0.0.1:11434/health" 240
+& curl.exe --silent --fail --max-time 2 --output NUL "http://127.0.0.1:11434/health" 2>$null
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "[ready] existing local Qwen"
+} else {
+    $localListener = Get-NetTCPConnection -LocalPort 11434 -State Listen -ErrorAction SilentlyContinue
+    if ($localListener) {
+        throw "Port 11434 is occupied by a service that is not a healthy Qwen provider."
+    }
+    Write-Host "Starting local Qwen provider..."
+    $local = Start-Process $llama -WorkingDirectory $root -WindowStyle Hidden -PassThru `
+        -ArgumentList @("-m", $model, "--host", "127.0.0.1", "--port", "11434", "--alias", $env:LOCAL_MODEL, "-c", "4096", "-ngl", "99") `
+        -RedirectStandardOutput (Join-Path $ctx.LogDir "local-provider.out.log") `
+        -RedirectStandardError (Join-Path $ctx.LogDir "local-provider.err.log")
+    Save-Stage2Process $ctx "local-provider" $local
+    Wait-Stage2Endpoint "local Qwen" "http://127.0.0.1:11434/health" 240
+}
 
 Write-Host "Starting Stage 2 backend..."
 $backend = Start-Process $python -WorkingDirectory $root -WindowStyle Hidden -PassThru `
@@ -49,7 +58,9 @@ $backend = Start-Process $python -WorkingDirectory $root -WindowStyle Hidden -Pa
 Save-Stage2Process $ctx "backend" $backend
 Wait-Stage2Backend 120
 
-$providers = Invoke-RestMethod "http://127.0.0.1:8768/api/providers" -TimeoutSec 5
+$providersJson = & curl.exe --silent --fail --max-time 5 "http://127.0.0.1:8768/api/providers"
+if ($LASTEXITCODE -ne 0) { throw "Backend provider status endpoint is unavailable." }
+$providers = $providersJson | ConvertFrom-Json
 $ready = $providers | Where-Object { $_.configured -and $_.available } | Select-Object -First 1
 if (-not $ready) { throw "Backend is healthy but no provider is ready." }
 Write-Host "[ready] AI provider: $($ready.name)"

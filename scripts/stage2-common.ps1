@@ -43,12 +43,12 @@ function Save-Stage2Process {
 function Wait-Stage2Endpoint {
     param([string]$Name, [string]$Uri, [int]$Attempts = 120)
     foreach ($attempt in 1..$Attempts) {
-        try {
-            $response = Invoke-WebRequest -UseBasicParsing -Uri $Uri -TimeoutSec 3
-            if ($response.StatusCode -eq 200) { Write-Host "[ready] $Name"; return }
-        } catch {
-            if ($attempt -eq $Attempts) { throw "$Name did not become ready: $($_.Exception.Message)" }
+        & curl.exe --silent --fail --max-time 3 --output NUL $Uri 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "[ready] $Name"
+            return
         }
+        if ($attempt -eq $Attempts) { throw "$Name did not become ready at $Uri." }
         Start-Sleep -Milliseconds 500
     }
 }
@@ -81,8 +81,14 @@ function Wait-Stage2Backend {
     param([int]$Attempts = 120)
     foreach ($attempt in 1..$Attempts) {
         try {
-            $health = Invoke-RestMethod "http://127.0.0.1:8768/api/health" -TimeoutSec 3
-            $spec = Invoke-RestMethod "http://127.0.0.1:8768/openapi.json" -TimeoutSec 3
+            $healthJson = & curl.exe --silent --fail --max-time 3 `
+                "http://127.0.0.1:8768/api/health" 2>$null
+            if ($LASTEXITCODE -ne 0) { throw "health endpoint unavailable" }
+            $specJson = & curl.exe --silent --fail --max-time 3 `
+                "http://127.0.0.1:8768/openapi.json" 2>$null
+            if ($LASTEXITCODE -ne 0) { throw "OpenAPI endpoint unavailable" }
+            $health = $healthJson | ConvertFrom-Json
+            $spec = $specJson | ConvertFrom-Json
             if ($health.status -and $spec.paths.'/api/analyze/stream') {
                 Write-Host "[ready] Stage 2 backend"
                 return

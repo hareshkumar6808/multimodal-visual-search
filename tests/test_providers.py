@@ -1,4 +1,5 @@
 import socket
+from pathlib import Path
 
 import httpx
 import pytest
@@ -8,6 +9,7 @@ from services.orchestrator.providers.gemini import GeminiProvider
 from services.orchestrator.providers.mock import MockProvider
 from services.orchestrator.providers.openai_compatible import OpenAICompatibleProvider
 from services.orchestrator.providers.registry import ProviderRegistry
+from services.orchestrator.routing.provider_performance import ProviderPerformanceStore
 
 
 def nvidia_provider(transport: httpx.AsyncBaseTransport) -> OpenAICompatibleProvider:
@@ -170,6 +172,19 @@ def test_balanced_routing_prefers_cloud_quality_for_code() -> None:
     ranked = registry.ranked(EXPERTS["code-expert"], False, prefer_cloud=True)
 
     assert [provider.name for provider in ranked] == ["nvidia", "gemini", "local"]
+
+
+def test_cloud_preference_keeps_local_as_fallback_after_local_history(tmp_path: Path) -> None:
+    store = ProviderPerformanceStore(str(tmp_path / "provider.sqlite3"))
+    for _ in range(3):
+        store.record("local", "text", total_ms=50, ttft_ms=20, success=True)
+    registry = ProviderRegistry(
+        [MockProvider(name="local"), MockProvider(name="nvidia-general-agent")],
+        store,
+    )
+    ranked = registry.ranked(EXPERTS["text-expert"], False, prefer_cloud=True)
+    assert [provider.name for provider in ranked] == ["nvidia-general-agent", "local"]
+    store.close()
 
 
 def test_balanced_routing_prefers_vision_provider_for_pixels() -> None:

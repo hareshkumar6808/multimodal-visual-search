@@ -110,6 +110,31 @@ def test_profiling_math_problem(problem: str) -> None:
     assert 0.0 <= confidence <= 1.0
 
 
+def test_profiling_recovers_calculus_from_noisy_single_line_ocr() -> None:
+    text = "Problem Evaluate the indefinite integral: [oe +4x —5) dx"
+    modalities, primary, _ = profile_multimodal(
+        OCRResult(text=text, confidence=0.86, regions=paragraph_regions([text])),
+        {"active_app": "Browser", "window_title": "Practice problem"},
+        dummy_preflight(),
+    )
+    assert primary == "math"
+    assert modalities.math > modalities.text
+
+
+def test_profiling_recovers_python_when_ocr_collapses_code_lines() -> None:
+    text = (
+        'python # Print a simple greeting name = "World" '
+        'print(f"Hello, {name}!") result = 10 + 5 print(f"Result = {result}")'
+    )
+    modalities, primary, _ = profile_multimodal(
+        OCRResult(text=text, confidence=0.91, regions=paragraph_regions([text])),
+        {"active_app": "Browser", "window_title": "Python example"},
+        dummy_preflight(),
+    )
+    assert primary == "code"
+    assert modalities.code > modalities.text
+
+
 @pytest.mark.parametrize(
     "lines",
     [

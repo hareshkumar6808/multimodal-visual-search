@@ -106,6 +106,42 @@ def test_cellular_respiration_routes_to_biomedical_leaf() -> None:
 
 
 @pytest.mark.parametrize(
+    ("content", "query", "expected"),
+    [
+        (
+            "Biology is the natural science that studies life and living organisms. Derived "
+            "from the Greek words bios and logos, it includes cells, genes, heredity, evolution, "
+            "botany, zoology, and ecology.",
+            "Explain this",
+            "text/biomedical",
+        ),
+        (
+            "Personal finance covers budgeting, saving, mortgages, insurance and retirement. "
+            "Corporate finance covers capital, investments and cash flow.",
+            "Explain this",
+            "text/finance",
+        ),
+        (
+            "Problem Evaluate the indefinite integral: [oe +4x —5) dx",
+            "What is the answer?",
+            "math/general",
+        ),
+        (
+            'python # greeting name = "World" print(f"Hello, {name}!") result = 10 + 5',
+            "What coding language is this?",
+            "code/python",
+        ),
+    ],
+)
+def test_router_recovers_specific_leaf_from_real_capture_text(
+    content: str, query: str, expected: str
+) -> None:
+    decision = UnifiedTaskRouter().route(mir("text", content), "explain", query)
+    assert decision.leaf_route == expected
+    assert decision.execution_mode in {"cloud_text", "tool"}
+
+
+@pytest.mark.parametrize(
     "content",
     [
         "The capital of France is Paris.",

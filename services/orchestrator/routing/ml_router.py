@@ -98,7 +98,7 @@ class UnifiedTaskRouter:
 
     def route(self, mir: MIR, intent: Intent, query: str | None = None) -> RouteDecisionV2:
         started = perf_counter()
-        family = self._family(mir)
+        family = self._family(mir, query)
         if family in DETERMINISTIC_LEAVES:
             leaf = DETERMINISTIC_LEAVES[family]
             return self._finish(
@@ -253,17 +253,53 @@ class UnifiedTaskRouter:
             router_total_ms=total_ms,
         )
 
-    @staticmethod
-    def _family(mir: MIR) -> str:
-        if mir.primary_modality in {"text", "code", "math", "table", "chart", "image", "ui"}:
-            return mir.primary_modality
+    @classmethod
+    def _family(cls, mir: MIR, query: str | None = None) -> str:
+        primary = mir.primary_modality
+        if primary in {"text", "mixed"}:
+            evidence = f"{mir.ocr.text}\n{query or ''}".lower()
+            if cls._looks_like_code(evidence):
+                return "code"
+            if cls._looks_like_math(evidence):
+                return "math"
+        if primary in {"text", "code", "math", "table", "chart", "image", "ui"}:
+            return primary
         return "general"
+
+    @staticmethod
+    def _looks_like_code(evidence: str) -> bool:
+        strong = (
+            r"\b(?:async\s+)?def\s+[a-z_]\w*\s*\(",
+            r"\bclass\s+[a-z_]\w*\s*[:(]",
+            r"\bimport\s+[a-z_]\w*(?:\.[a-z_]\w*)*",
+            r"\bfrom\s+[a-z_]\w*(?:\.[a-z_]\w*)*\s+import\s+[a-z_*]",
+            r"\bprint\s*\(",
+            r"\bpublic\s+static\s+void\s+main\s*\(",
+            r"\bselect\b[\s\S]+\bfrom\b",
+            r"\b(?:const|let|var)\s+[a-z_$]\w*\s*=",
+        )
+        return any(re.search(pattern, evidence, re.IGNORECASE) for pattern in strong)
+
+    @staticmethod
+    def _looks_like_math(evidence: str) -> bool:
+        return bool(
+            re.search(
+                r"\b(?:algebra|angle|calculus|calculate|derivative|differentiate|equation|"
+                r"factor|geometry|indefinite\s+integral|integral|integrate|matrix|probability|"
+                r"quadratic|simplify|solve|theorem|triangle)\b",
+                evidence,
+            )
+            or re.search(r"(?:\b[a-z]\b|\d+)\s*(?:\^|\*\*)\s*\d+", evidence)
+        )
 
     @staticmethod
     def _supports_specialized_prediction(features: str, leaf: str) -> bool:
         """Accept a confident ML prediction when multiple domain terms support it."""
         terms = {
             "text/biomedical": {
+                "biology",
+                "biological",
+                "cell",
                 "cellular respiration",
                 "glucose",
                 "atp",
@@ -281,6 +317,15 @@ class UnifiedTaskRouter:
                 "dna",
                 "rna",
                 "organism",
+                "living organism",
+                "gene",
+                "genes",
+                "heredity",
+                "evolution",
+                "botany",
+                "zoology",
+                "ecology",
+                "molecular biology",
                 "patient",
                 "metformin",
                 "insulin",
@@ -305,6 +350,23 @@ class UnifiedTaskRouter:
                 "governing law",
             },
             "text/finance": {
+                "finance",
+                "personal finance",
+                "corporate finance",
+                "public finance",
+                "budget",
+                "budgeting",
+                "saving",
+                "mortgage",
+                "insurance",
+                "retirement",
+                "investment",
+                "capital",
+                "fiscal",
+                "tax",
+                "interest",
+                "liquidity",
+                "risk",
                 "revenue",
                 "profit",
                 "margin",
@@ -319,6 +381,7 @@ class UnifiedTaskRouter:
                 "quarterly",
             },
             "code/python": {
+                "python",
                 "def",
                 "elif",
                 "import",
@@ -387,7 +450,11 @@ class UnifiedTaskRouter:
             return False
         normalized = features.lower()
         strong_patterns = {
-            "code/python": (r"(?m)^\s*(?:async\s+)?def\s+[a-z_]\w*\s*\(",),
+            "code/python": (
+                r"(?m)^\s*(?:async\s+)?def\s+[a-z_]\w*\s*\(",
+                r"\bprint\s*\(",
+                r"\bf?['\"][^'\"]*\{[^{}]+\}[^'\"]*['\"]",
+            ),
             "code/java": (r"\bpublic\s+static\s+void\s+main\s*\(",),
             "code/sql": (r"\bselect\b[\s\S]+\bfrom\b",),
             "math/algebra": (

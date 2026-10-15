@@ -8,7 +8,7 @@ from services.orchestrator.main import create_app
 from services.orchestrator.perception import MockPerceptionAdapter, RealPerceptionAdapter
 from services.orchestrator.providers.mock import MockProvider
 from services.orchestrator.providers.registry import ProviderRegistry
-from services.orchestrator.routing import RuleRouter
+from services.orchestrator.routing import RuleRouter, UnifiedTaskRouter
 from services.orchestrator.service import Orchestrator
 
 PNG = base64.b64decode(
@@ -101,6 +101,50 @@ def test_direct_ocr_and_streaming_endpoint_use_no_provider() -> None:
     assert "Exact local OCR" in response.text
     assert '"api_calls":0' in response.text
     assert provider.stats.session_requests == 0
+
+
+def test_streamed_stage2_response_preserves_leaf_and_prefers_cloud() -> None:
+    mir = MIR(
+        request_id="seed",
+        image=ImageInfo(sha256="a" * 64, width=100, height=50),
+        modalities=Modalities(text=0.98),
+        primary_modality="text",
+        ocr=OCRResult(
+            text="Biology studies living organisms, cells, genes, heredity and evolution.",
+            confidence=0.98,
+        ),
+        overall_confidence=0.98,
+    )
+    service = Orchestrator(
+        MockPerceptionAdapter(mir),
+        UnifiedTaskRouter(),
+        ProviderRegistry(
+            [
+                MockProvider(name="local", response="local answer"),
+                MockProvider(name="nvidia-general-agent", response="cloud answer"),
+            ]
+        ),
+    )
+    response = TestClient(create_app(service)).post(
+        "/api/analyze/stream",
+        files={"image": ("capture.png", PNG, "image/png")},
+        data={
+            "payload_json": json.dumps(
+                {"request_id": "stage2-stream", "query": "Explain this", "context": {}}
+            )
+        },
+    )
+    payloads = [
+        json.loads(line.removeprefix("data: "))
+        for line in response.text.splitlines()
+        if line.startswith("data: ")
+    ]
+    done = next(payload for payload in payloads if payload["type"] == "done")
+    route = done["response"]["route"]
+    assert route["leaf_route"] == "text/biomedical"
+    assert route["expert"] == "text-expert"
+    assert route["provider"] == "nvidia-general-agent"
+    assert route["execution_mode"] == "cloud_text"
 
 
 def test_api_rejects_non_image_upload() -> None:

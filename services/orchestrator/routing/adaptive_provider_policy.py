@@ -64,10 +64,13 @@ class AdaptiveProviderPolicy:
                 "STAGE1_DEFAULT_INSUFFICIENT_HISTORY"
             )
 
-        def adaptive_key(provider: Provider) -> tuple[float, int, float]:
+        def adaptive_key(provider: Provider) -> tuple[int, int, float, int, float]:
             stat = measured[provider.name]
+            preferred_tier = int(provider.is_cloud != prefer_cloud)
+            specialization = 0 if expert.name in provider.preferred_experts else 1
             if stat is None or stat.sample_count < self.settings.min_samples:
-                return (float("inf"), *self._static_key(provider, default_priority, expert)[:2])
+                static = self._static_key(provider, default_priority, expert)
+                return (preferred_tier, specialization, float("inf"), static[0], static[1])
             total = stat.ewma_total_ms or 0.0
             ttft = stat.ewma_ttft_ms if stat.ewma_ttft_ms is not None else total
             failure = (1.0 - stat.success_ewma) * self.settings.failure_penalty_ms
@@ -77,7 +80,7 @@ class AdaptiveProviderPolicy:
                 + failure
             )
             static = self._static_key(provider, default_priority, expert)
-            return (score, static[0], static[1])
+            return (preferred_tier, specialization, score, static[0], static[1])
 
         return sorted(eligible, key=adaptive_key), "EWMA_LATENCY_SUCCESS_RANKING"
 

@@ -66,7 +66,7 @@ class ExecutionPolicy:
         }
         if complex_route:
             return ExecutionPolicyResult("cloud_text", False, None, "CLOUD_REASONING_PREFERRED")
-        return ExecutionPolicyResult("local_llm", False, None, "LOCAL_TEXT_SUFFICIENT")
+        return ExecutionPolicyResult("cloud_text", False, None, "CLOUD_GENERATION_PREFERRED")
 
     def should_send_pixels(self, mir: MIR, query: str, leaf_route: str) -> bool:
         extra = mir.model_extra or {}

@@ -646,6 +646,19 @@ class Orchestrator:
         complete = ""
         provider_name: str | None = None
         stream_metrics: dict[str, float] = {}
+        prefer_cloud = decision.execution_mode.startswith("cloud")
+        local_only = "local_only" in mir.privacy_flags or bool(mir.context.get("local_only", False))
+        ranked_candidates = [
+            provider.name
+            for provider in self.providers.ranked(
+                expert_route.expert,
+                decision.send_pixels,
+                prefer_cloud=prefer_cloud,
+                local_only=local_only,
+                task_kind="vision" if decision.send_pixels else "text",
+            )
+        ]
+        provider_policy_reason = self.providers.last_policy_reason
         try:
             async for event in self.providers.stream_with_fallback(
                 expert_route.expert,
@@ -653,7 +666,8 @@ class Orchestrator:
                 decision.send_pixels,
                 image_bytes,
                 mime_type,
-                prefer_cloud=decision.execution_mode.startswith("cloud"),
+                prefer_cloud=prefer_cloud,
+                local_only=local_only,
                 ranked_provider_candidates=decision.ranked_provider_candidates,
             ):
                 if event.type == "delta":
@@ -679,11 +693,20 @@ class Orchestrator:
                     ),
                     route=RouteInfo(
                         intent=intent,
-                        expert=policy.canonical_leaf,
+                        expert=expert_route.expert.name,
                         provider=provider_name,
-                        reason_code="STREAM_PROVIDER",
+                        reason_code=expert_route.reason_code,
+                        ranked_provider_candidates=ranked_candidates,
+                        provider_policy_reason=provider_policy_reason,
+                        **self._stage2_route_fields(expert_route),
                     ),
                     trace=[
+                        TraceEvent(
+                            stage="routing",
+                            status="complete",
+                            message=f"{policy.canonical_leaf} selected",
+                            confidence=expert_route.routing_certainty,
+                        ),
                         TraceEvent(
                             stage="provider", status="complete", message=f"{provider_name} streamed"
                         )
@@ -698,6 +721,7 @@ class Orchestrator:
                         ),
                         api_calls=1,
                         **stream_metrics,
+                        **self._router_metric_fields(expert_route),
                     ),
                 )
                 self.conversations.append_exchange(

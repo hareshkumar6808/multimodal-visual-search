@@ -78,7 +78,7 @@ class ProviderRegistry:
                     max_tokens=settings.nvidia_max_tokens,
                     temperature=0.2,
                     family="nvidia",
-                    preferred_experts=frozenset({"code-expert", "table-expert"}),
+                    preferred_experts=frozenset({"code-expert", "math-expert", "table-expert"}),
                 ),
                 OpenAICompatibleProvider(
                     name="nvidia-vision-agent",
@@ -271,9 +271,15 @@ class ProviderRegistry:
         mime_type: str,
         *,
         prefer_cloud: bool = False,
+        local_only: bool = False,
         ranked_provider_candidates: tuple[str, ...] = (),
     ) -> AsyncIterator[ProviderStreamEvent]:
-        candidates = self.ranked(expert, image_required, prefer_cloud=prefer_cloud)
+        candidates = self.ranked(
+            expert,
+            image_required,
+            prefer_cloud=prefer_cloud,
+            local_only=local_only,
+        )
         if image_required:
             text_fallbacks = self.ranked(
                 expert,

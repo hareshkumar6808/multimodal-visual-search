@@ -126,9 +126,43 @@ def _math_score(text: str, code_score: float) -> float:
     score = min(0.70, expression_hits * 0.24)
     score += min(0.65, keyword_hits * 0.18)
     score += min(0.30, symbol_hits * 0.15)
+    if re.search(
+        r"\b(?:indefinite\s+integral|definite\s+integral|integral|derivative|differentiate|"
+        r"quadratic\s+equation|probability)\b",
+        normalized,
+    ):
+        score = max(score, 0.72)
+    if re.search(r"\b(?:integral|integrate)\b", normalized) and re.search(
+        r"(?:\bdx\b|\bdy\b|\bd[a-z]\b|∫)", normalized
+    ):
+        score = max(score, 0.88)
     if code_score >= 0.60:
         score *= 0.30
     return min(1.0, score)
+
+
+def _code_structure_score(text: str, pattern_count: int) -> float:
+    """Recover code structure when OCR collapses a snippet onto one line."""
+    normalized = text.lower()
+    explicit_language = bool(
+        re.search(r"\b(?:python|javascript|typescript|java|sql|rust|c\+\+)\b", normalized)
+    )
+    signals = sum(
+        (
+            bool(re.search(r"(?<![=!<>])\b[a-z_]\w*\s*=\s*[^=]", text, re.IGNORECASE)),
+            bool(re.search(r"\b[a-z_]\w*\s*\([^)]*\)", text, re.IGNORECASE)),
+            bool(re.search(r"(?:^|\s)(?:#|//)\s*\w+", text)),
+            bool(re.search(r"(?:f|r|u|b)?['\"][^'\"]+['\"]", text, re.IGNORECASE)),
+            bool(re.search(r"\{[^{}]+\}", text)),
+        )
+    )
+    if explicit_language and signals >= 2:
+        return 0.88
+    if pattern_count >= 1 and signals >= 3:
+        return 0.82
+    if pattern_count >= 2 and signals >= 2:
+        return 0.78
+    return 0.0
 
 
 def profile_multimodal(
@@ -166,6 +200,7 @@ def profile_multimodal(
         code_raw += min(0.65, pattern_count * 0.20)
     if symbol_count > 0:
         code_raw += min(0.25, symbol_count * 0.03)
+    code_raw = max(code_raw, _code_structure_score(text, pattern_count))
 
     # Check line indentation
     indented_lines = sum(1 for line in text.splitlines() if line.startswith(("    ", "\t")))

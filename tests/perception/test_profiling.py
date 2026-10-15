@@ -92,6 +92,25 @@ def test_profiling_plain_text() -> None:
 
 
 @pytest.mark.parametrize(
+    "problem",
+    [
+        "Solve the quadratic equation x^2 + 5x + 6 = 0.",
+        "In a triangle, two angles are 45 degrees. Calculate the remaining angle.",
+        "A fair coin is tossed five times. Find the probability of exactly three heads.",
+    ],
+)
+def test_profiling_math_problem(problem: str) -> None:
+    modalities, primary, confidence = profile_multimodal(
+        OCRResult(text=problem, confidence=0.95, regions=paragraph_regions([problem])),
+        {"active_app": "Notepad", "window_title": "problem.txt"},
+        dummy_preflight(),
+    )
+    assert primary == "math"
+    assert modalities.math > modalities.text
+    assert 0.0 <= confidence <= 1.0
+
+
+@pytest.mark.parametrize(
     "lines",
     [
         ["This is normal text.", "This is another normal line.", "This is another sentence."],

@@ -38,6 +38,14 @@ export interface RouteDetails {
   expert: string;
   provider: string | null;
   reason_code: string;
+  sub_expert?: string | null;
+  leaf_route?: string | null;
+  routing_confidence?: number | null;
+  router_source?: "ml" | "rule" | "deterministic";
+  fallback_used?: boolean;
+  execution_mode?: "direct" | "tool" | "local_llm" | "cloud_text" | "cloud_vision" | null;
+  send_pixels?: boolean;
+  requested_tool?: string | null;
 }
 
 export type TraceStatus = "complete" | "failed" | "skipped";

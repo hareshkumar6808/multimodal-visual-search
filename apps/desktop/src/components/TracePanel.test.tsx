@@ -8,7 +8,15 @@ const response: AnalyzeResponse = {
   answer: "Returned response",
   suggested_actions: [],
   mir_summary: { primary_modality: "code", confidence: 0.94 },
-  route: { intent: "debug", expert: "code-expert", provider: "provider-name", reason_code: "CODE_DEBUG_TEXT_SUFFICIENT" },
+  route: {
+    intent: "debug",
+    expert: "code-expert",
+    sub_expert: "python",
+    leaf_route: "code/python",
+    routing_confidence: 0.91,
+    provider: "provider-name",
+    reason_code: "CODE_DEBUG_TEXT_SUFFICIENT",
+  },
   trace: [
     { stage: "capture_received", status: "complete" },
     { stage: "perception", status: "complete", message: "Code detected" },
@@ -24,6 +32,8 @@ describe("TracePanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show Process" }));
     expect(screen.getByText("Code detected")).toBeInTheDocument();
     expect(screen.getByText("code · 94%")).toBeInTheDocument();
+    expect(screen.getByText("code/python")).toBeInTheDocument();
+    expect(screen.getByText("91%")).toBeInTheDocument();
     expect(screen.getByText("1.20 sec")).toBeInTheDocument();
     expect(screen.getByText("Not uploaded")).toBeInTheDocument();
   });

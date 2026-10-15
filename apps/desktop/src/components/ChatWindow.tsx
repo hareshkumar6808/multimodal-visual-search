@@ -38,6 +38,7 @@ import { desktopBridge } from "../services/desktopBridge";
 import type { CaptureContext, ConversationSummary } from "../types/api";
 import { TracePanel } from "./TracePanel";
 import { LiveProgress } from "./LiveProgress";
+import { MarkdownAnswer } from "./MarkdownAnswer";
 
 const fallbackContext: CaptureContext = {
   active_app: null,
@@ -332,10 +333,14 @@ export function ChatWindow({ captureId }: { captureId: string | null }) {
               ))}
               {message.status === "sending" ? (
                 message.content
-                  ? <p aria-live="polite">{message.content}</p>
+                  ? <div aria-live="polite"><MarkdownAnswer>{message.content}</MarkdownAnswer></div>
                   : <LiveProgress events={message.progress ?? []} />
               ) : (
-                message.content && <p>{message.content}</p>
+                message.content && (
+                  message.role === "assistant"
+                    ? <MarkdownAnswer>{message.content}</MarkdownAnswer>
+                    : <p>{message.content}</p>
+                )
               )}
               {message.status === "error" && (
                 <div className="message-error"><small>{message.error}</small><button onClick={() => void retry(message.id)}>Retry</button></div>

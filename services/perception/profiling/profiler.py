@@ -6,6 +6,7 @@ modalities: text, code, table, chart, image, mixed.
 
 from __future__ import annotations
 
+import re
 from statistics import median
 from typing import Any
 
@@ -85,6 +86,51 @@ def _check_table_alignment(regions: list[dict[str, Any]], img_w: int, img_h: int
     return 0.0
 
 
+def _math_score(text: str, code_score: float) -> float:
+    """Recognize equations and math problem language without stealing code captures."""
+    normalized = text.lower()
+    expression_hits = len(
+        re.findall(
+            r"(?:\b[a-z]\b|\d+)\s*(?:\^|\*\*)?\s*[+\-*/=]\s*(?:\b[a-z]\b|\d+)",
+            normalized,
+        )
+    )
+    keyword_hits = sum(
+        bool(re.search(rf"\b{re.escape(term)}\b", normalized))
+        for term in (
+            "algebra",
+            "angle",
+            "calculate",
+            "circle",
+            "coin",
+            "derivative",
+            "differentiate",
+            "equation",
+            "factor",
+            "geometry",
+            "heads",
+            "integral",
+            "integrate",
+            "matrix",
+            "perimeter",
+            "probability",
+            "quadratic",
+            "radius",
+            "simplify",
+            "solve",
+            "theorem",
+            "triangle",
+        )
+    )
+    symbol_hits = len(re.findall(r"[√∫∑π≤≥±∞]", text))
+    score = min(0.70, expression_hits * 0.24)
+    score += min(0.65, keyword_hits * 0.18)
+    score += min(0.30, symbol_hits * 0.15)
+    if code_score >= 0.60:
+        score *= 0.30
+    return min(1.0, score)
+
+
 def profile_multimodal(
     ocr_result: OCRResult,
     context: dict[str, Any],
@@ -129,7 +175,12 @@ def profile_multimodal(
     code_score = min(1.0, code_raw + boosts["code"])
 
     # -------------------------------------------------------------
-    # 2. Table Modality Score
+    # 2. Math Modality Score
+    # -------------------------------------------------------------
+    math_score = _math_score(text, code_score)
+
+    # -------------------------------------------------------------
+    # 3. Table Modality Score
     # -------------------------------------------------------------
     table_delims = count_table_matches(text)
     chart_kw_count = count_chart_keywords(text)
@@ -153,7 +204,7 @@ def profile_multimodal(
     table_score = min(1.0, table_raw + boosts["table"])
 
     # -------------------------------------------------------------
-    # 3. Chart Modality Score
+    # 4. Chart Modality Score
     # -------------------------------------------------------------
     chart_raw = min(0.60, chart_kw_count * 0.20)
     # Charts typically have moderate-to-low text coverage with numbers/%
@@ -166,7 +217,7 @@ def profile_multimodal(
         chart_score *= 0.5
 
     # -------------------------------------------------------------
-    # 4. Text Modality Score
+    # 5. Text Modality Score
     # -------------------------------------------------------------
     text_raw = 0.0
     if word_count >= 50:
@@ -181,13 +232,17 @@ def profile_multimodal(
     # Penalize plain text score if strongly identified as code
     if code_score >= 0.6:
         text_raw = min(text_raw, 0.45)
+    elif math_score >= 0.55:
+        text_raw = min(text_raw, 0.35)
     elif paragraph_evidence:
         text_raw = min(1.0, text_raw + 0.20)
 
     text_score = min(1.0, text_raw + boosts["text"])
+    if math_score >= 0.50:
+        text_score = min(text_score, 0.35)
 
     # -------------------------------------------------------------
-    # 5. Image Modality Score
+    # 6. Image Modality Score
     # -------------------------------------------------------------
     image_raw = 0.0
     if word_count == 0:
@@ -204,19 +259,23 @@ def profile_multimodal(
     image_score = min(1.0, image_raw + boosts["image"])
 
     # -------------------------------------------------------------
-    # 6. Mixed Modality Score
+    # 7. Mixed Modality Score
     # -------------------------------------------------------------
     # Mixed is elevated when heterogeneous modalities co-occur:
     # e.g., significant structured text (text/code/table) alongside visual elements (chart/image)
     # or multiple non-text modalities (table + chart)
     mixed_score = 0.0
-    has_text_modality = max(text_score, code_score, table_score) >= 0.40
+    has_text_modality = max(text_score, code_score, math_score, table_score) >= 0.40
     has_visual_element = max(chart_score, image_score) >= 0.35
     if has_text_modality and has_visual_element:
         mixed_score = round(
             min(
                 1.0,
-                (max(text_score, code_score, table_score) + max(chart_score, image_score)) / 2.0
+                (
+                    max(text_score, code_score, math_score, table_score)
+                    + max(chart_score, image_score)
+                )
+                / 2.0
                 + 0.10,
             ),
             2,
@@ -227,6 +286,7 @@ def profile_multimodal(
     modalities = Modalities(
         text=round(text_score, 2),
         code=round(code_score, 2),
+        math=round(math_score, 2),
         table=round(table_score, 2),
         chart=round(chart_score, 2),
         image=round(image_score, 2),
@@ -237,13 +297,13 @@ def profile_multimodal(
     # Determine Primary Modality
     # -------------------------------------------------------------
     primary_modality: Modality
-    max_individual = max(text_score, code_score, table_score, chart_score, image_score)
+    max_individual = max(text_score, code_score, math_score, table_score, chart_score, image_score)
     if mixed_score >= 0.65 and mixed_score >= max_individual:
         primary_modality = "mixed"
     else:
         # Pick the highest individual scoring modality
-        # Priority on ties: code > table > chart > text > image
-        priority_order: list[Modality] = ["code", "table", "chart", "text", "image"]
+        # Priority on ties: code > math > table > chart > text > image
+        priority_order: list[Modality] = ["code", "math", "table", "chart", "text", "image"]
         best_modality = priority_order[0]
         max_val = -1.0
         for mod in priority_order:
@@ -260,6 +320,7 @@ def profile_multimodal(
     scores = {
         "text": text_score,
         "code": code_score,
+        "math": math_score,
         "table": table_score,
         "chart": chart_score,
         "image": image_score,

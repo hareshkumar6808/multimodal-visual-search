@@ -13,8 +13,8 @@ use image::{DynamicImage, ImageOutputFormat};
 use screenshots::Screen;
 use serde::{Deserialize, Serialize};
 use tauri::{
-    ipc::Channel, AppHandle, Emitter, LogicalSize, Manager, State, WebviewUrl, WebviewWindow,
-    WebviewWindowBuilder, Window, WindowEvent,
+    ipc::Channel, AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, PhysicalSize, State,
+    WebviewUrl, WebviewWindow, WebviewWindowBuilder, Window, WindowEvent,
 };
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use uuid::Uuid;
@@ -109,6 +109,14 @@ struct RouteDetails {
     expert: String,
     provider: Option<String>,
     reason_code: String,
+    sub_expert: Option<String>,
+    leaf_route: Option<String>,
+    routing_confidence: Option<f64>,
+    router_source: Option<String>,
+    fallback_used: Option<bool>,
+    execution_mode: Option<String>,
+    send_pixels: Option<bool>,
+    requested_tool: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -318,6 +326,26 @@ fn configure_chat_window(chat: &WebviewWindow) {
     });
 }
 
+fn position_chat_as_side_panel(chat: &WebviewWindow) -> Result<(), String> {
+    let Some(monitor) = chat.primary_monitor().map_err(|error| error.to_string())? else {
+        return Ok(());
+    };
+    let work_area = monitor.work_area();
+    let scale = monitor.scale_factor();
+    let margin = (12.0 * scale).round() as u32;
+    let desired_width = (430.0 * scale).round() as u32;
+    let available_width = work_area.size.width.saturating_sub(margin.saturating_mul(2));
+    let width = desired_width.min(available_width);
+    let height = work_area.size.height.saturating_sub(margin.saturating_mul(2));
+    let x = work_area.position.x + work_area.size.width as i32 - width as i32 - margin as i32;
+    let y = work_area.position.y + margin as i32;
+    chat.set_size(PhysicalSize::new(width, height))
+        .map_err(|error| error.to_string())?;
+    chat.set_position(PhysicalPosition::new(x, y))
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
 fn open_chat_window(app: &AppHandle, capture_id: &str) -> Result<(), String> {
     let chat = if let Some(existing) = app.get_webview_window("chat") {
         eprintln!("CHAT_WINDOW_REUSED capture_id={capture_id}");
@@ -337,6 +365,7 @@ fn open_chat_window(app: &AppHandle, capture_id: &str) -> Result<(), String> {
         created
     };
     let _ = chat.unminimize();
+    position_chat_as_side_panel(&chat)?;
     chat.show().map_err(|error| error.to_string())?;
     chat.set_focus().map_err(|error| error.to_string())?;
     Ok(())

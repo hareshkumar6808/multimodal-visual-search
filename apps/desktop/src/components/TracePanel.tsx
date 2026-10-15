@@ -14,6 +14,8 @@ function label(stage: string) {
 
 export function TracePanel({ response }: { response: AnalyzeResponse }) {
   const [open, setOpen] = useState(false);
+  const leafExpert = response.route.leaf_route
+    ?? (response.route.sub_expert ? `${response.mir_summary.primary_modality}/${response.route.sub_expert}` : response.route.expert);
   return (
     <section className="trace-panel">
       <button className="trace-toggle" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
@@ -30,7 +32,10 @@ export function TracePanel({ response }: { response: AnalyzeResponse }) {
           <dl className="trace-facts">
             <div><dt>Modality</dt><dd>{response.mir_summary.primary_modality} · {Math.round(response.mir_summary.confidence * 100)}%</dd></div>
             <div><dt>Intent</dt><dd>{response.route.intent}</dd></div>
-            <div><dt>Expert</dt><dd>{response.route.expert}</dd></div>
+            <div><dt>Expert</dt><dd>{leafExpert}</dd></div>
+            {response.route.routing_confidence != null && (
+              <div><dt>Route confidence</dt><dd>{Math.round(response.route.routing_confidence * 100)}%</dd></div>
+            )}
             <div><dt>Provider</dt><dd>{response.route.provider ?? "None"}</dd></div>
             <div><dt>Total</dt><dd>{(response.metrics.latency_ms / 1000).toFixed(2)} sec</dd></div>
             <div><dt>Cloud image</dt><dd>{response.metrics.cloud_image_uploaded ? "Uploaded" : "Not uploaded"}</dd></div>

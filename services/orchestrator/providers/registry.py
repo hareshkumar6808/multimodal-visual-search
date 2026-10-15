@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
@@ -307,21 +306,21 @@ class ProviderRegistry:
             if family in attempted_families:
                 continue
             attempted_families.add(family)
-            provider_started = perf_counter()
-            emitted = False
-            try:
-                yield ProviderStreamEvent("progress", provider=provider.name)
-                send_image = image_required and "vision" in provider.capabilities
-                provider_prompt = prompt
-                if image_required and not send_image:
-                    provider_prompt += (
-                        "\n\nOFFLINE TEXT FALLBACK: Raw image pixels are unavailable to this "
-                        "text-only model. Answer only from extracted text and desktop context "
-                        "included above. If they are insufficient, say what could not be "
-                        "determined from the local extraction."
-                    )
-                timeout = float(getattr(provider, "timeout", 30.0))
-                async with asyncio.timeout(timeout):
+            send_image = image_required and "vision" in provider.capabilities
+            provider_prompt = prompt
+            if image_required and not send_image:
+                provider_prompt += (
+                    "\n\nOFFLINE TEXT FALLBACK: Raw image pixels are unavailable to this "
+                    "text-only model. Answer only from extracted text and desktop context "
+                    "included above. If they are insufficient, say what could not be "
+                    "determined from the local extraction."
+                )
+            attempts = 2 if provider.is_cloud else 1
+            for attempt in range(attempts):
+                provider_started = perf_counter()
+                emitted = False
+                try:
+                    yield ProviderStreamEvent("progress", provider=provider.name)
                     async for delta in provider.stream_generate(
                         provider_prompt, image_bytes if send_image else None, mime_type
                     ):
@@ -337,24 +336,31 @@ class ProviderRegistry:
                             }
                         emitted = True
                         yield ProviderStreamEvent("delta", delta, provider.name, metrics)
-                if not emitted:
-                    raise ProviderError(f"Provider {provider.name} returned an empty stream")
-                total = (perf_counter() - provider_started) * 1000
-                yield ProviderStreamEvent(
-                    "done",
-                    provider=provider.name,
-                    metrics={
-                        "provider_total_ms": total,
-                        "stream_duration_ms": (perf_counter() - stream_started) * 1000,
-                    },
-                )
-                return
-            except Exception as exc:
-                if emitted:
-                    raise StreamInterruptedError(
-                        f"{provider.name} stream interrupted after partial output: {exc}"
-                    ) from exc
-                failed.append(provider.name)
+                    if not emitted:
+                        raise ProviderError(f"Provider {provider.name} returned an empty stream")
+                    total = (perf_counter() - provider_started) * 1000
+                    yield ProviderStreamEvent(
+                        "done",
+                        provider=provider.name,
+                        metrics={
+                            "provider_total_ms": total,
+                            "stream_duration_ms": (perf_counter() - stream_started) * 1000,
+                        },
+                    )
+                    return
+                except Exception as exc:
+                    if emitted:
+                        raise StreamInterruptedError(
+                            f"{provider.name} stream interrupted after partial output: {exc}"
+                        ) from exc
+                    if attempt + 1 < attempts:
+                        logger.warning(
+                            "provider_stream_failed provider=%s retrying=true error=%s",
+                            provider.name,
+                            exc,
+                        )
+                        continue
+                    failed.append(provider.name)
         raise NoCompatibleProviderError(f"All compatible providers failed: {', '.join(failed)}")
 
     async def aclose(self) -> None:

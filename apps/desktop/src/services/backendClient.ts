@@ -20,7 +20,7 @@ export async function streamConversation(
   onEvent: (event: StreamEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const response = await fetch("http://127.0.0.1:8768/api/chat/stream", {
+  const response = await fetch("http://127.0.0.1:8771/api/chat/stream", {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
     body: JSON.stringify(payload),

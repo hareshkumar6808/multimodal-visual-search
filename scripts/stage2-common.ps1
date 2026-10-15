@@ -54,16 +54,16 @@ function Wait-Stage2Endpoint {
 }
 
 function Stop-StaleStage2Backend {
-    $listeners = @(Get-NetTCPConnection -LocalPort 8768 -State Listen -ErrorAction SilentlyContinue)
+    $listeners = @(Get-NetTCPConnection -LocalPort 8771 -State Listen -ErrorAction SilentlyContinue)
     if (-not $listeners) { return }
 
     try {
-        $spec = Invoke-RestMethod "http://127.0.0.1:8768/openapi.json" -TimeoutSec 3
+        $spec = Invoke-RestMethod "http://127.0.0.1:8771/openapi.json" -TimeoutSec 3
     } catch {
-        throw "Port 8768 is occupied by an unknown service (PID $($listeners[0].OwningProcess))."
+        throw "Port 8771 is occupied by an unknown service (PID $($listeners[0].OwningProcess))."
     }
     if ($spec.info.title -ne "Multimodal Visual Search Orchestrator") {
-        throw "Port 8768 is occupied by another service (PID $($listeners[0].OwningProcess))."
+        throw "Port 8771 is occupied by another service (PID $($listeners[0].OwningProcess))."
     }
 
     $pids = $listeners | Select-Object -ExpandProperty OwningProcess -Unique
@@ -71,10 +71,10 @@ function Stop-StaleStage2Backend {
         & taskkill.exe /PID $processId /T /F 2>$null | Out-Null
     }
     foreach ($attempt in 1..20) {
-        if (-not (Get-NetTCPConnection -LocalPort 8768 -State Listen -ErrorAction SilentlyContinue)) { return }
+        if (-not (Get-NetTCPConnection -LocalPort 8771 -State Listen -ErrorAction SilentlyContinue)) { return }
         Start-Sleep -Milliseconds 250
     }
-    throw "The older Visual Search backend on port 8768 could not be stopped."
+    throw "The older Visual Search backend on port 8771 could not be stopped."
 }
 
 function Wait-Stage2Backend {
@@ -82,10 +82,10 @@ function Wait-Stage2Backend {
     foreach ($attempt in 1..$Attempts) {
         try {
             $healthJson = & curl.exe --silent --fail --max-time 3 `
-                "http://127.0.0.1:8768/api/health" 2>$null
+                "http://127.0.0.1:8771/api/health" 2>$null
             if ($LASTEXITCODE -ne 0) { throw "health endpoint unavailable" }
             $specJson = & curl.exe --silent --fail --max-time 3 `
-                "http://127.0.0.1:8768/openapi.json" 2>$null
+                "http://127.0.0.1:8771/openapi.json" 2>$null
             if ($LASTEXITCODE -ne 0) { throw "OpenAPI endpoint unavailable" }
             $health = $healthJson | ConvertFrom-Json
             $spec = $specJson | ConvertFrom-Json

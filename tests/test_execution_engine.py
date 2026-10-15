@@ -171,6 +171,21 @@ class StreamingProvider(Provider):
             raise ProviderError("planned stream failure")
 
 
+class FailOnceStreamingProvider(StreamingProvider):
+    def __init__(self, name: str, chunks: list[str]) -> None:
+        super().__init__(name, chunks)
+        self.attempts = 0
+
+    async def stream_generate(
+        self, prompt: str, image_bytes: bytes | None = None, mime_type: str = "image/png"
+    ) -> AsyncIterator[str]:
+        self.attempts += 1
+        if self.attempts == 1:
+            raise ProviderError("temporary cloud failure")
+        for chunk in self.chunks:
+            yield chunk
+
+
 @pytest.mark.asyncio
 async def test_stream_emits_start_progress_multiple_deltas_done_and_ttft() -> None:
     registry = ProviderRegistry([StreamingProvider("nvidia", ["one ", "two"])])
@@ -200,6 +215,27 @@ async def test_stream_falls_back_only_before_first_delta() -> None:
         )
     ]
     assert [event.text for event in events if event.type == "delta"] == ["fallback"]
+
+
+@pytest.mark.asyncio
+async def test_stream_retries_cloud_once_before_local_fallback() -> None:
+    cloud = FailOnceStreamingProvider("nvidia", ["cloud answer"])
+    local = StreamingProvider("local", ["local answer"])
+    local.is_cloud = False
+    registry = ProviderRegistry([cloud, local])
+    events = [
+        event
+        async for event in registry.stream_with_fallback(
+            EXPERTS["text-expert"],
+            "prompt",
+            False,
+            b"",
+            "image/png",
+            prefer_cloud=True,
+        )
+    ]
+    assert cloud.attempts == 2
+    assert [event.text for event in events if event.type == "delta"] == ["cloud answer"]
 
 
 @pytest.mark.asyncio

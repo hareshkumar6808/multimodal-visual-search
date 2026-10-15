@@ -9,7 +9,7 @@ New-Item -ItemType Directory -Force $ctx.StateDir, $ctx.LogDir | Out-Null
 & (Join-Path $PSScriptRoot "stop-stage2.ps1") -Quiet
 Stop-StaleStage2Backend
 
-foreach ($port in @(8768, 1420)) {
+foreach ($port in @(8771, 1420)) {
     $listeners = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
     if ($listeners) { throw "Port $port is already occupied by PID $($listeners[0].OwningProcess). Stop that process or the older project launcher first." }
 }
@@ -52,13 +52,13 @@ if ($LASTEXITCODE -eq 0) {
 
 Write-Host "Starting Stage 2 backend..."
 $backend = Start-Process $python -WorkingDirectory $root -WindowStyle Hidden -PassThru `
-    -ArgumentList @("-m", "uvicorn", "services.orchestrator.main:app", "--host", "127.0.0.1", "--port", "8768") `
+    -ArgumentList @("-m", "uvicorn", "services.orchestrator.main:app", "--host", "127.0.0.1", "--port", "8771") `
     -RedirectStandardOutput (Join-Path $ctx.LogDir "backend.out.log") `
     -RedirectStandardError (Join-Path $ctx.LogDir "backend.err.log")
 Save-Stage2Process $ctx "backend" $backend
 Wait-Stage2Backend 120
 
-$providersJson = & curl.exe --silent --fail --max-time 5 "http://127.0.0.1:8768/api/providers"
+$providersJson = & curl.exe --silent --fail --max-time 5 "http://127.0.0.1:8771/api/providers"
 if ($LASTEXITCODE -ne 0) { throw "Backend provider status endpoint is unavailable." }
 $providers = $providersJson | ConvertFrom-Json
 $ready = $providers | Where-Object { $_.configured -and $_.available } | Select-Object -First 1

@@ -19,7 +19,7 @@ use tauri::{
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use uuid::Uuid;
 
-const BACKEND_BASE_URL: &str = "http://127.0.0.1:8768";
+const BACKEND_BASE_URL: &str = "http://127.0.0.1:8771";
 const DEFAULT_CAPTURE_SHORTCUT: &str = "Ctrl+Shift+Period";
 
 struct DesktopState {
@@ -1074,6 +1074,6 @@ mod tests {
             ),
             "No configured, available provider supports this route"
         );
-        assert_eq!(BACKEND_BASE_URL, "http://127.0.0.1:8768");
+        assert_eq!(BACKEND_BASE_URL, "http://127.0.0.1:8771");
     }
 }

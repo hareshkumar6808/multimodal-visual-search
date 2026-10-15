@@ -20,7 +20,7 @@ $env:LOCAL_BASE_URL = "http://127.0.0.1:11434/v1"
 $env:LOCAL_MODEL = "qwen2.5-3b-instruct"
 $env:PROVIDER_TIMEOUT_SECONDS = "10"
 $backend = Start-Process $python -WorkingDirectory $root -WindowStyle Hidden -PassThru `
-    -ArgumentList @("-m", "uvicorn", "services.orchestrator.main:app", "--host", "127.0.0.1", "--port", "8768") `
+    -ArgumentList @("-m", "uvicorn", "services.orchestrator.main:app", "--host", "127.0.0.1", "--port", "8771") `
     -RedirectStandardOutput (Join-Path $ctx.LogDir "backend.out.log") `
     -RedirectStandardError (Join-Path $ctx.LogDir "backend.err.log")
 Save-Stage2Process $ctx "backend" $backend

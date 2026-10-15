@@ -109,6 +109,25 @@ def test_direct_ocr_has_zero_api_calls() -> None:
     assert "direct_ms" in result.metrics
 
 
+def test_failed_deterministic_tool_falls_through_to_provider() -> None:
+    engine = ExecutionEngine()
+    decision = RouteDecisionV2(
+        expert="math",
+        leaf_route="math/general",
+        execution_mode="tool",
+        requested_tool="math",
+    )
+    _, policy = engine.adapt(decision, "math-expert")
+    result = engine.execute_local(
+        decision,
+        policy,
+        ocr_text="noisy OCR",
+        tool_input={"operation": "simplify", "expression": "Problem: [oe +4x —5) dx"},
+    )
+    assert result.kind == "provider"
+    assert result.tool_result and result.tool_result["success"] is False
+
+
 def test_stage1_experts_map_to_general_leaves() -> None:
     engine = ExecutionEngine()
     for expert, expected in {

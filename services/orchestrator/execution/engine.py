@@ -90,6 +90,15 @@ class ExecutionEngine:
             result = python_static_tool(**args)
         else:
             result = sql_static_tool(**args)
+        if not result.success:
+            return ExecutionResult(
+                "provider",
+                None,
+                policy,
+                result.model_dump(),
+                0,
+                {"tool_ms": result.duration_ms},
+            )
         answer = str(result.result) if result.success else None
         return ExecutionResult(
             "tool",

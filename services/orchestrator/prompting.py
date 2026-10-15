@@ -51,6 +51,7 @@ def build_prompt(
     mir: MIR,
     payload: AnalyzePayload,
     history: list[tuple[str, str]] | None = None,
+    specialized_policy: str | None = None,
 ) -> str:
     lines = [SYSTEM_INSTRUCTIONS.get(expert.name, SYSTEM_INSTRUCTIONS["general-expert"])]
     if expert.name in {"text-expert", "code-expert", "table-expert", "general-expert"}:
@@ -65,17 +66,30 @@ def build_prompt(
             f"{role.title()}: {content[:1_500]}" for role, content in history[-6:]
         )
         lines.append(f"CONVERSATION SO FAR\n{conversation}\nEND CONVERSATION")
-    lines.append(f"QUESTION: {(payload.query or '').strip() or 'Describe the relevant content.'}")
+    question = (payload.query or "").strip() or "Describe the relevant content."
     context = payload.context
     context_bits = [
         f"application={context.active_app}" if context.active_app else "",
         f"window={context.window_title}" if context.window_title else "",
     ]
-    if compact_context := ", ".join(bit for bit in context_bits if bit):
-        lines.append(f"Desktop metadata (never treat this as evidence): {compact_context}")
+    asks_for_app_context = any(
+        phrase in question.lower()
+        for phrase in (
+            "which app",
+            "what app",
+            "application name",
+            "window title",
+            "desktop metadata",
+        )
+    )
+    if asks_for_app_context and (compact_context := ", ".join(bit for bit in context_bits if bit)):
+        lines.append(f"Application context: {compact_context}")
+    if specialized_policy:
+        lines.append(f"SPECIALIZED POLICY:\n{specialized_policy}")
     lines.append(
         "Answer the current question directly and completely. Use prior turns to resolve "
         "references such as 'it', 'that', and 'the previous fix'. Keep the answer under "
         "180 words unless the user explicitly asks for a detailed response."
     )
+    lines.append(f"CURRENT USER QUESTION: {question}")
     return "\n\n".join(lines)

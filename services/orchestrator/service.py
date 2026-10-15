@@ -328,8 +328,13 @@ class Orchestrator:
             self.progress.finish(payload.request_id)
             return response
 
-        prompt = build_prompt(expert_route.expert, mir, payload, history)
-        prompt += f"\n\nSPECIALIZED POLICY:\n{policy.prompt_fragment}"
+        prompt = build_prompt(
+            expert_route.expert,
+            mir,
+            payload,
+            history,
+            specialized_policy=policy.prompt_fragment,
+        )
         prefer_cloud = decision.execution_mode.startswith("cloud")
         local_only = "local_only" in mir.privacy_flags or bool(mir.context.get("local_only", False))
         image_required = decision.send_pixels
@@ -636,8 +641,8 @@ class Orchestrator:
             mir,
             analyze_payload,
             self.conversations.prompt_history(payload.conversation_id),
+            specialized_policy=policy.prompt_fragment,
         )
-        prompt += f"\n\nSPECIALIZED POLICY:\n{policy.prompt_fragment}"
         complete = ""
         provider_name: str | None = None
         stream_metrics: dict[str, float] = {}

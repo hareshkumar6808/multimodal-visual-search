@@ -24,7 +24,9 @@ CANONICAL_LEAVES = (
 
 PROMPTS = {
     "text/biomedical": (
-        "Explain only the supplied biomedical source. Do not invent studies or diagnose."
+        "Act as a biology and biomedical subject expert. Explain the supplied life-science "
+        "or clinical source accurately, connect causes to effects, and stay grounded in the "
+        "capture. Do not invent studies or diagnose."
     ),
     "text/legal": (
         "Ground the answer in the supplied source. Do not invent cases or statutes; "

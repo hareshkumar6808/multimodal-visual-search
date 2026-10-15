@@ -89,6 +89,37 @@ def test_short_biomedical_capture_keeps_supported_ml_leaf() -> None:
     assert decision.router_source == "ml"
 
 
+def test_cellular_respiration_routes_to_biomedical_leaf() -> None:
+    decision = UnifiedTaskRouter().route(
+        mir(
+            "text",
+            "Cellular respiration breaks down glucose aerobically or anaerobically. "
+            "Fermentation can produce ethanol or lactic acid, while ATP stores energy. "
+            "Gas exchange occurs by diffusion in alveoli and capillaries.",
+        ),
+        "explain",
+        "Explain",
+    )
+    assert decision.leaf_route == "text/biomedical"
+    assert decision.router_source == "ml"
+    assert decision.send_pixels is False
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "The capital of France is Paris.",
+        "A rainbow forms when sunlight is refracted and reflected in water droplets.",
+        "The French Revolution began in 1789 after a fiscal crisis and social inequality.",
+    ],
+)
+def test_out_of_domain_text_abstains_to_general_leaf(content: str) -> None:
+    decision = UnifiedTaskRouter().route(mir("text", content), "explain", "Explain this")
+    assert decision.leaf_route == "text/general"
+    assert decision.fallback_used is True
+    assert decision.reason_code == "ML_NO_SPECIALIZED_EVIDENCE_GENERAL_FALLBACK"
+
+
 @pytest.mark.parametrize(
     ("modality", "expected"),
     [

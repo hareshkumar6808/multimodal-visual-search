@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
@@ -132,7 +133,26 @@ class UnifiedTaskRouter:
             thresholds = self._artifact.get("thresholds", {})
             threshold = float(thresholds.get(family, thresholds.get("global", 0.5)))
             evidence_leaf = self._specialized_evidence_leaf(built.text, candidates)
-            if confidence < threshold and evidence_leaf is not None:
+            if evidence_leaf is None:
+                return self._finish(
+                    mir,
+                    query,
+                    intent,
+                    GENERAL_LEAVES[family],
+                    confidence,
+                    "ml",
+                    True,
+                    (
+                        "ML_LOW_CONFIDENCE_GENERAL_FALLBACK"
+                        if confidence < threshold
+                        else "ML_NO_SPECIALIZED_EVIDENCE_GENERAL_FALLBACK"
+                    ),
+                    built.feature_build_ms,
+                    classifier_ms,
+                    started,
+                )
+            evidence_overrode_prediction = evidence_leaf != leaf
+            if evidence_overrode_prediction or confidence < threshold:
                 leaf = evidence_leaf
                 confidence = float(probability_by_class.get(leaf, 0.0))
             evidence_supported = self._supports_specialized_prediction(built.text, leaf)
@@ -158,7 +178,13 @@ class UnifiedTaskRouter:
                 confidence,
                 "ml",
                 False,
-                "ML_SPECIALIZED_ROUTE_EVIDENCE" if evidence_supported else "ML_SPECIALIZED_ROUTE",
+                (
+                    "ML_DOMAIN_EVIDENCE_OVERRIDE"
+                    if evidence_overrode_prediction
+                    else "ML_SPECIALIZED_ROUTE_EVIDENCE"
+                    if evidence_supported
+                    else "ML_SPECIALIZED_ROUTE"
+                ),
                 built.feature_build_ms,
                 classifier_ms,
                 started,
@@ -237,14 +263,145 @@ class UnifiedTaskRouter:
     def _supports_specialized_prediction(features: str, leaf: str) -> bool:
         """Accept a confident ML prediction when multiple domain terms support it."""
         terms = {
-            "text/biomedical": {"patient", "metformin", "insulin", "clinical", "therapy"},
-            "text/legal": {"lessee", "lessor", "indemnify", "agreement", "jurisdiction"},
-            "text/finance": {"revenue", "margin", "earnings", "profit", "quarterly"},
+            "text/biomedical": {
+                "cellular respiration",
+                "glucose",
+                "atp",
+                "aerobic",
+                "anaerobic",
+                "fermentation",
+                "gas exchange",
+                "diffusion",
+                "alveoli",
+                "capillaries",
+                "stomata",
+                "photosynthesis",
+                "enzyme",
+                "protein",
+                "dna",
+                "rna",
+                "organism",
+                "patient",
+                "metformin",
+                "insulin",
+                "clinical",
+                "therapy",
+                "diagnosis",
+                "disease",
+            },
+            "text/legal": {
+                "agreement",
+                "contract",
+                "clause",
+                "lessee",
+                "lessor",
+                "indemnify",
+                "jurisdiction",
+                "statute",
+                "liability",
+                "plaintiff",
+                "defendant",
+                "arbitration",
+                "governing law",
+            },
+            "text/finance": {
+                "revenue",
+                "profit",
+                "margin",
+                "earnings",
+                "cash flow",
+                "assets",
+                "liabilities",
+                "equity",
+                "dividend",
+                "balance sheet",
+                "income statement",
+                "quarterly",
+            },
+            "code/python": {
+                "def",
+                "elif",
+                "import",
+                "print",
+                "return",
+                "none",
+                "traceback",
+                "self",
+                "__init__",
+            },
+            "code/java": {
+                "public static void main",
+                "system.out",
+                "string[]",
+                "public class",
+                "private class",
+                "extends",
+                "implements",
+                "new",
+            },
+            "code/sql": {
+                "select",
+                "from",
+                "where",
+                "join",
+                "group by",
+                "order by",
+                "insert into",
+                "update",
+                "delete from",
+            },
+            "math/algebra": {
+                "equation",
+                "polynomial",
+                "factor",
+                "variable",
+                "solve for",
+                "quadratic",
+                "linear",
+                "algebra",
+            },
+            "math/geometry": {
+                "triangle",
+                "circle",
+                "angle",
+                "radius",
+                "diameter",
+                "perimeter",
+                "area",
+                "hypotenuse",
+                "parallel",
+            },
+            "math/probability": {
+                "probability",
+                "random",
+                "sample space",
+                "expected value",
+                "coin",
+                "dice",
+                "outcomes",
+                "permutation",
+                "combination",
+            },
         }.get(leaf)
         if not terms:
             return False
         normalized = features.lower()
-        return sum(term in normalized for term in terms) >= 2
+        strong_patterns = {
+            "code/python": (r"(?m)^\s*(?:async\s+)?def\s+[a-z_]\w*\s*\(",),
+            "code/java": (r"\bpublic\s+static\s+void\s+main\s*\(",),
+            "code/sql": (r"\bselect\b[\s\S]+\bfrom\b",),
+            "math/algebra": (
+                r"\b[a-z]\s*(?:\^|\*\*)\s*\d+",
+                r"\b[a-z]\s*[+\-*/]\s*[a-z]\s*=",
+            ),
+        }.get(leaf, ())
+        if any(re.search(pattern, normalized) for pattern in strong_patterns):
+            return True
+        matches = 0
+        for term in terms:
+            pattern = rf"(?<![a-z0-9_]){re.escape(term)}(?![a-z0-9_])"
+            matches += bool(re.search(pattern, normalized))
+        return matches >= 2
 
     @classmethod
     def _specialized_evidence_leaf(cls, features: str, candidates: tuple[str, ...]) -> str | None:

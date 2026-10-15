@@ -83,6 +83,11 @@ class ExecutionPolicy:
         ocr_confidence = mir.ocr.confidence or 0.0
         asks_visual = any(term in query for term in self._visual_terms)
 
+        # Perception has already determined that the reduced OCR/structure is
+        # insufficient. Never let a downstream representation label discard
+        # the only remaining evidence: the original screenshot.
+        if mir.visual_required:
+            return True
         if leaf_route in {"vision/general", "chart/general"}:
             return True
         if leaf_route == "ui/general":

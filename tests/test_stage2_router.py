@@ -244,6 +244,32 @@ def test_execution_and_query_aware_pixels() -> None:
     )
 
 
+def test_math_capture_with_insufficient_ocr_sends_original_pixels() -> None:
+    decision = UnifiedTaskRouter().route(
+        mir(
+            "math",
+            "",
+            visual_required=True,
+            ocr={"text": "", "confidence": 0.0},
+            representation={
+                "kind": "text_sufficient",
+                "scores": {
+                    "text_sufficient": 0.9,
+                    "structure_sufficient": 0.0,
+                    "pixels_required": 0.1,
+                    "mixed": 0.0,
+                },
+                "confidence": 0.9,
+                "pixel_dependency_prior": 0.1,
+            },
+        ),
+        "general",
+        "Answer this integral question",
+    )
+    assert decision.execution_mode == "cloud_vision"
+    assert decision.send_pixels is True
+
+
 def test_provider_performance_persists_and_adapts(tmp_path: Path) -> None:
     database = tmp_path / "performance.sqlite3"
     store = ProviderPerformanceStore(str(database), alpha=0.5)
